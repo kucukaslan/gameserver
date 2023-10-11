@@ -1,8 +1,7 @@
-package tr.com.kucukaslan3.dream.util;
+package tr.com.kucukaslan.dream.util;
 
 import java.util.UUID;
 
-import org.json.HTTP;
 import org.json.JSONObject;
 import org.slf4j.MDC;
 
@@ -22,14 +21,14 @@ public class MyUtil {
     public static String setTraceId(JSONObject jsonObject) {
         String traceId = MDC.get(TRACE_ID);
         if(traceId == null) {
-            traceId = jsonObject.getString(TRACE_ID);
+            traceId = jsonObject.optString(TRACE_ID);
         }
         
         return setOrGenerateTraceId(traceId);
     }
 
     public static String setOrGenerateTraceId(String traceId) {
-        if(traceId == null) {
+        if(traceId == null || traceId.isBlank()) {
             traceId = UUID.randomUUID().toString();
         }
         MDC.put(TRACE_ID, traceId);

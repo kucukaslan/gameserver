@@ -1,4 +1,4 @@
-package tr.com.kucukaslan3.dream;
+package tr.com.kucukaslan.dream;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

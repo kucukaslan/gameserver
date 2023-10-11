@@ -1,8 +1,3 @@
-# Read Me First
-The following was discovered as part of building this project:
-
-* The original package name 'tr.com.kucukaslan.2023.dream' is invalid and this project uses 'tr.com.kucukaslan3.dream' instead.
-
 # Getting Started
 
 ### Reference Documentation
