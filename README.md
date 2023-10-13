@@ -31,3 +31,9 @@ mvn test
 
 - [ ] similarly should server immediately anounce the results or wait for some buffer time to complete tasks being processed?
 - [ ] It seems sending request to enter the tournament is (blocking) action for the client. i.e. server will have it wait until the tournament starts.  
+- [ ] There user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
+- [ ] User can only spend coins to enter tournament.
+
+## Journal
+There is also [Journal.md](Journal.md) file that I kept while working on this project. 
+It is like a diary or an informal `parallel git history`.

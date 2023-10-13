@@ -13,9 +13,11 @@ import java.sql.Types;
 import java.util.Properties;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import lombok.extern.slf4j.Slf4j;
+import tr.com.kucukaslan.dream.util.MyException;
 
 @Slf4j
 public class DBService {
@@ -32,6 +34,12 @@ public class DBService {
     Connection con;
 
     private static final String USER_INSERT_SQL = "INSERT INTO user (countryISO2, name) VALUES (?, ?)";
+    // UPDATE `user` SET `level` = '1', `coin` = '5025', `name` = 'Wow updated', `date_modified` = CURRENT_TIMESTAMP WHERE `user`.`user_id` = 10
+    private static final String USER_UPDATE_SQL = "UPDATE  `user` SET `level` = `level` + ?, `coin` = `coin` + ?, `date_modified` = CURRENT_TIMESTAMP WHERE `user`.`user_id` = ?";
+    private static final String USER_SELECT_SQL = "SELECT * FROM `user` WHERE `user_id` = ?";
+
+    private static final long LEVEL_AWARD = 25;
+    private static final long[] TOURNAMENT_AWARDS = { 10000, 5000 };
 
     private DBService() {
 
@@ -89,17 +97,48 @@ public class DBService {
         if(!rs.next()){
             log.error("Error while inserting user {}", user);
         }
-        long id = rs.getLong(1);
-        log.trace("SQL executed, id: {}", id);
+        long user_id = rs.getLong(1);
+        log.trace("SQL executed, user_id: {}", user_id);
 
         // retrieve the inserted user
-        stmt = con.prepareStatement("SELECT * FROM user WHERE id = ?");
-        stmt.setLong(1, id);
+        stmt = con.prepareStatement(USER_SELECT_SQL);
+        stmt.setLong(1, user_id);
         log.trace("retrieving created user data SQL: {}", stmt.toString());
         rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
 
        return resultSetToJSON(rs).getJSONObject(0);
+    }
+
+    /**
+     * increment user level by 1 and coins by 25
+     * @param user
+     * @return
+     * @throws SQLException
+     * @throws JSONException
+     * @throws MyException
+     */
+    public JSONObject incrementUserLevel(JSONObject user) throws SQLException, MyException, JSONException {
+        PreparedStatement stmt = con.prepareStatement(USER_UPDATE_SQL);
+        stmt.setLong(1, 1); // increment level by 1
+        stmt.setLong(2, LEVEL_AWARD); // increment coins by 25
+        stmt.setLong(3, user.getLong("user_id"));
+
+        log.trace("Executing SQL: {}", stmt.toString());
+        if (stmt.executeUpdate() != 1) {
+            log.error("Error while incrementing user level {}", user);
+            throw new MyException("Couldn't increment user level with user_id: "+user.getLong("user_id")  );
+        }
+        log.trace("SQL executed");
+
+        // retrieve the updated user
+        stmt = con.prepareStatement(USER_SELECT_SQL);
+        stmt.setLong(1, user.getLong("user_id"));
+        log.trace("retrieving updated user data SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+
+        return resultSetToJSON(rs).getJSONObject(0);
     }
 
     private static JSONArray resultSetToJSON(ResultSet rs) {

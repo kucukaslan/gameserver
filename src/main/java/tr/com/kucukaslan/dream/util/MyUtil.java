@@ -6,8 +6,12 @@ import org.json.JSONObject;
 import org.slf4j.MDC;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class MyUtil {
+    public static final String[] countries = { "TR", "US", "DE", "FR", "GB" };
+
     public static final String TRACE_ID = "traceId";
     
     public static String setTraceId(HttpServletRequest httpRequest) {
@@ -43,6 +47,7 @@ public class MyUtil {
         try {
             new JSONObject(test);
         } catch (Exception ex) {
+            log.warn("Error while parsing json string {} due to {}", test, ex.getMessage());
             return false;
         }
         return true;
@@ -62,7 +67,6 @@ public class MyUtil {
     }
 
     public static String getRandomCountry() {
-        String[] countries = { "TR", "US", "DE", "FR", "GB" };
         return countries[(int) (Math.random() * countries.length)];
     }
 }
