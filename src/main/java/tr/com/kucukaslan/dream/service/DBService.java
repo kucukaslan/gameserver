@@ -6,9 +6,9 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLType;
 import java.sql.Types;
 import java.util.Properties;
 
@@ -31,6 +31,7 @@ public class DBService {
     Properties properties;
     Connection con;
 
+    private static final String USER_INSERT_SQL = "INSERT INTO user (countryISO2, name) VALUES (?, ?)";
 
     private DBService() {
 
@@ -68,7 +69,8 @@ public class DBService {
 
     public JSONObject insertUser(JSONObject user) throws SQLException{
         // insert user and get the id
-        PreparedStatement stmt = con.prepareStatement("INSERT INTO user (countryISO2, name) VALUES (?, ?)", new String[]{"id", "coin", "level"});
+        ResultSet rs;
+        PreparedStatement stmt = con.prepareStatement(USER_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
         stmt.setString(1, user.getString("countryISO2"));
         if(user.isNull("name")) {
             log.trace("name is null, setting null to DB");
@@ -83,14 +85,18 @@ public class DBService {
             throw new SQLException("Error while inserting user");
         }
         
-        long id = stmt.getGeneratedKeys().getLong(1);
+        rs = stmt.getGeneratedKeys();
+        if(!rs.next()){
+            log.error("Error while inserting user {}", user);
+        }
+        long id = rs.getLong(1);
         log.trace("SQL executed, id: {}", id);
 
         // retrieve the inserted user
         stmt = con.prepareStatement("SELECT * FROM user WHERE id = ?");
         stmt.setLong(1, id);
         log.trace("retrieving created user data SQL: {}", stmt.toString());
-        ResultSet rs = stmt.executeQuery();
+        rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
 
        return resultSetToJSON(rs).getJSONObject(0);
@@ -99,7 +105,6 @@ public class DBService {
     private static JSONArray resultSetToJSON(ResultSet rs) {
         JSONArray jsonArray = new JSONArray();
         try {
-            rs.beforeFirst();
             while (rs.next()) {
                 JSONObject obj = new JSONObject();
                 int columnCount = rs.getMetaData().getColumnCount();
@@ -109,7 +114,8 @@ public class DBService {
                 jsonArray.put(obj);
             }
         } catch (SQLException e) {
-            log.error("Error while converting ResultSet to JSON", e);
+            log.error("Error while converting ResultSet to JSON", e.getMessage());
+            log.debug("stack trace {}", e.getStackTrace());
         }
         return jsonArray;
     }

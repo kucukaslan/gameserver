@@ -29,7 +29,7 @@ coins, and country ISO2 code.
      * @param httpRequest
      * @return
      */
-    @RequestMapping(value = "/CreateUserRequest", method = RequestMethod.POST)
+    @RequestMapping(value = "/CreateUserRequest", method = {RequestMethod.POST, RequestMethod.GET})
     public ResponseEntity<String> createUserRequest(@RequestBody (required = false) String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
         log.debug("CreateUserRequest method is called");
