@@ -16,14 +16,20 @@ import tr.com.kucukaslan.dream.service.DBService;
 @SpringBootApplication
 public class DreamApplication {
 
-	public static void main(String[] args) throws FileNotFoundException, IOException, SQLException {
-		log.info("initializing DBService");
-		DBService.getInstance().initialize();
-		log.info("DBService initialized");
+	public static void main(String[] args) {
 		
+			log.info("initializing DBService");
+			try {
+				DBService.getInstance().initialize();
+			} catch (IOException | SQLException e) {
+				log.error("Error while initializing DBService due to {}", e.getMessage());
+				log.debug("{}", e);
+				log.debug(String.valueOf(e.getStackTrace()));
+			}
+			log.info("DBService initialized");
+				
 		
 		log.info("DreamApplication is starting");
-		// TODO DB connections etc.
 		SpringApplication.run(DreamApplication.class, args);
 	}
 
