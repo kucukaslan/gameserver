@@ -10,10 +10,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLType;
 import java.sql.Types;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,7 +34,6 @@ public class DBService {
     private static DBService instance;
     Properties properties;
     Connection con;
-
 
     private DBService() {
 
@@ -67,33 +70,34 @@ public class DBService {
     }
 
     public JSONObject insertUser(JSONObject user) throws SQLException{
-        // insert user and get the id
-        PreparedStatement stmt = con.prepareStatement("INSERT INTO user (countryISO2, name) VALUES (?, ?)", new String[]{"id", "coin", "level"});
-        stmt.setString(1, user.getString("countryISO2"));
+        // SimpleJdbcInsert insert = new SimpleJdbcInsert()
+        //     .withTableName("user")
+        //     .usingGeneratedKeyColumns("id");
+        
+        Map<String, Object> parameters = new HashMap<String, Object>();
+        parameters.put("countryISO2", user.getString("countryISO2"));
         if(user.isNull("name")) {
             log.trace("name is null, setting null to DB");
-            stmt.setNull(2, Types.VARCHAR);
+            parameters.put("name", null);
         } else {
-            stmt.setString(2, user.getString("name"));
+            parameters.put("name", user.getString("name"));
         }
-        log.trace("Executing SQL: {}", stmt.toString());
 
-        if (stmt.executeUpdate() != 1) {
-            log.error("Error while inserting user {}", user);
-            throw new SQLException("Error while inserting user");
-        }
+        log.trace("inserting user to DB: {}", parameters);
+        Number id = insert.executeAndReturnKey(parameters);
+        log.trace("user inserted to DB, id: {}", id);
         
-        long id = stmt.getGeneratedKeys().getLong(1);
-        log.trace("SQL executed, id: {}", id);
+        return getUserById(id.longValue());
+    }
 
+    private JSONObject getUserById(long id) throws SQLException {
         // retrieve the inserted user
-        stmt = con.prepareStatement("SELECT * FROM user WHERE id = ?");
+        PreparedStatement stmt = con.prepareStatement("SELECT * FROM user WHERE id = ?");
         stmt.setLong(1, id);
         log.trace("retrieving created user data SQL: {}", stmt.toString());
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
-
-       return resultSetToJSON(rs).getJSONObject(0);
+        return resultSetToJSON(rs).getJSONObject(0);
     }
 
     private static JSONArray resultSetToJSON(ResultSet rs) {
