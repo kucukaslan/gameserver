@@ -34,4 +34,35 @@ public class MyUtil {
         MDC.put(TRACE_ID, traceId);
         return traceId;
     }
+
+    public static boolean isJSONFormatted(String test) {
+        if (test == null || test.isBlank()) {
+            return false;
+        }
+
+        try {
+            new JSONObject(test);
+        } catch (Exception ex) {
+            return false;
+        }
+        return true;
+    }
+
+    public static boolean isJSONFormatted(String test, boolean isNullable) {
+        if (test == null) {
+            return isNullable;
+        }
+
+        try {
+            new JSONObject(test.toString());
+        } catch (Exception ex) {
+            return false;
+        }
+        return true;
+    }
+
+    public static String getRandomCountry() {
+        String[] countries = { "TR", "US", "DE", "FR", "GB" };
+        return countries[(int) (Math.random() * countries.length)];
+    }
 }

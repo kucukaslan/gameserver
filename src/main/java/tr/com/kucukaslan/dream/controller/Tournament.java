@@ -22,7 +22,7 @@ public class Tournament {
     @RequestMapping(value = "/EnterTournamentRequest", method = RequestMethod.POST)
     public ResponseEntity<String> enterTournamentRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
-        log.info("EnterTournamentRequest method is called");
+        log.debug("EnterTournamentRequest method is called");
         //TODO: implement
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "not entered to tournament LoL").toString());
@@ -34,7 +34,7 @@ public class Tournament {
     @RequestMapping(value = "/ClaimRewardRequest", method = RequestMethod.POST)
     public ResponseEntity<String> claimRewardRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
-        log.info("ClaimRewardRequest method is called");
+        log.debug("ClaimRewardRequest method is called");
         //TODO: implement
         return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "reward is not claimed LoL").toString());
@@ -47,7 +47,7 @@ public class Tournament {
     @RequestMapping(value = "/GetGroupRankRequest", method = RequestMethod.POST)
     public ResponseEntity<String> getGroupRankRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
-        log.info("GetGroupRankRequest method is called");
+        log.debug("GetGroupRankRequest method is called");
         //TODO: implement
         return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "rank is not retrieved LoL").toString());
@@ -59,7 +59,7 @@ public class Tournament {
     @RequestMapping(value = "/GetGroupLeaderboardRequest", method = { RequestMethod.GET, RequestMethod.POST })
     public ResponseEntity<String> getGroupLeaderboardRequest(@RequestBody(required = false) String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
-        log.info("GetGroupLeaderboardRequest method is called");
+        log.debug("GetGroupLeaderboardRequest method is called");
         //TODO: implement
         return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "leaderboard is not retrieved LoL").toString());
@@ -71,7 +71,7 @@ public class Tournament {
     @RequestMapping(value = "/GetCountryLeaderboardRequest", method = { RequestMethod.GET, RequestMethod.POST })
     public ResponseEntity<String> getCountryLeaderboardRequest(@RequestBody(required = false) String body, HttpServletRequest httpRequest){
         MyUtil.setTraceId(httpRequest);
-        log.info("GetCountryLeaderboardRequest method is called");
+        log.debug("GetCountryLeaderboardRequest method is called");
         //TODO: implement
         return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "leaderboard is not retrieved LoL").toString());
