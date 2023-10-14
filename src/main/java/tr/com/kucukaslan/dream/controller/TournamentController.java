@@ -1,5 +1,6 @@
 package tr.com.kucukaslan.dream.controller;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -7,6 +8,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -20,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import tr.com.kucukaslan.dream.util.MyUtil;
 import tr.com.kucukaslan.dream.util.TournamentGroup;
+import tr.com.kucukaslan.dream.util.TournamentManager;
 
 @Slf4j
 @RestController
@@ -100,12 +103,31 @@ public class TournamentController {
         String[] countries = new String[] { "TR", "US", "DE", "FR", "GB" };
         log.info("request is received");
         ExecutorService executorService = Executors.newFixedThreadPool(5);
-
         for (Long i = 0L; i < 5; i++) {
-            Long j = i.longValue()*1000 + Math.round(Math.random()*1000d);
-            executorService.submit(() -> {
-                log.debug("{}: joining country: {} ", j.intValue(), countries[j.intValue()]);
-                TournamentGroup group = TournamentGroup.join(countries[j.intValue()], j, this);
+            Long id=i.longValue()*1000 + Math.round(Math.random()*1000d);
+            Long j = i.longValue();
+            executorService.execute(() -> {
+                log.debug("{}: joining country: {} ", id, countries[j.intValue()]);
+                TournamentGroup group;
+                try {
+                    group = TournamentManager.getInstance().join(countries[j.intValue()], id);
+                } catch (SQLException | JSONException e) {
+                    log.error("error while joining country: {} ", countries[j.intValue()], e);
+                    return ;
+                }
+                while(true) {
+                    try {
+                        // TODO LOL
+                        log.debug("{}:{} waiting group {}", id,  countries[j.intValue()], group);
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                    if(group.size() == 5) {
+                        break;
+                    }
+                }
                 log.debug("{} joined country {} to group: {} ", j.intValue(), countries[j.intValue()], group);
                 // try {
                 //     group.wait();
@@ -113,13 +135,21 @@ public class TournamentController {
                 //     // TODO Auto-generated catch block
                 //     e.printStackTrace();
                 // }
-                log.debug("{}: woke up", j);
+                log.debug("{}: woke up {}", j, String.valueOf(group));
+                JSONObject relation = null;
+                try {
+                    relation = TournamentManager.getInstance().join(id, group.getGroupJson().getLong("tournament_group_id"));
+                } catch (SQLException | JSONException e) {
+                    log.error("error while joining country: {} ", countries[j.intValue()], e);    
+                }
+                log.debug("{}: joined to tournament group relation: {} ", j, relation);
 
             });
         }
 
         try {
-            executorService.awaitTermination(15000l, TimeUnit.SECONDS);
+            executorService.shutdown();
+            executorService.awaitTermination(30l, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

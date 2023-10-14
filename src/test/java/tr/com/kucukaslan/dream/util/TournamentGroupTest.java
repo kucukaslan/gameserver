@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+import org.json.JSONException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +38,14 @@ public class TournamentGroupTest {
             Long j = i;
             executorService.submit(() -> {
                 log.debug("{}: joining country: {} ", j.intValue(), countries[j.intValue()]);
-                TournamentGroup group = TournamentGroup.join(countries[j.intValue()], j);
+                TournamentGroup group;
+                try {
+                    group = TournamentManager.getInstance().join(countries[j.intValue()], j);
+                } catch (SQLException | JSONException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                    return;
+                }
                 log.debug("{} joined country {} to group: {} ", j.intValue(), countries[j.intValue()], group);
                 try {
                     group.wait();

@@ -21,9 +21,29 @@ error handling, table/column names, etc.
 For the moment the kind of queries I need are simple enough to be handled by
 Spring Data JPA. Especially, since, each request is a single query, so I don't get to
 entertain the idea of using a single transaction for multiple queries. Even if I
-write raw SQL queries.
+write raw SQL queries[^cope].
 
 ## 11.13
 2 and half hours
 - I've implemented CreateUserRequest updateLevelRequest endpoints. though the latter
 will need to be updated to handle tournament scorekeeping if there any.
+I'm back to writing SQLs LoL. Gaining experience huh?
+
+## 11.14 
+4 hours (I don't know anymore :D )
+- My tests to entering tournament logic as in the temporay `/test` endpoints seems 
+promising except tha fact that I use Thread.sleep() instead of establishing pub-sub (or event listener) structure.
+I've made naive attempts to use Java's Monitor concurrency pattern with wait/notifyAll methods
+but it didn't work. I would have a better chance of succeding in this if I had spent
+some time to testing/protyping just how Java's Monitor work. I miss the MPI and Go's channels!
+- BTW I used executorService to initiate multiple requests in `/test` but it turned out
+that `executorService.awaitTermination(30000l, TimeUnit.SECONDS);` is a long time to wait[^timeunits].
+As it turns out the real mistake here was that I have forgotten to shutdown the executorService.
+If I hadn't forgotten to shutdown the executorService, that seconds mistake woulnd't matter.
+At least I could use this structure in tests to simulate multiple users. 
+
+
+
+[^timeunits]: ![TimeUnits conversion mistake](extras/timeunits.png)
+
+[^cope]: cope harder ![copium](https://i.kym-cdn.com/photos/images/original/001/932/122/2bd.png)

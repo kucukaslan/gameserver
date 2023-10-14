@@ -21,6 +21,15 @@ Test:
 ```bash
 mvn test
 ```
+## TODO
+- [ ] using local cache instead of redis? (for now I'm not using redis)
+TournamentCache has a built-in cache, but it is not persistent. Maybe I can use redis for that.
+```java
+    private Map<String, JSONObject> tournamentCacheByCode;
+```
+- [ ] make sure the tournament joint request queues are emptied after the tournament ends.
+so that the next tournament can start with empty queues.
+
 
 ## Questions
 - [ ] endpoint access control (should require tokens?)
@@ -36,4 +45,4 @@ mvn test
 
 ## Journal
 There is also [Journal.md](Journal.md) file that I kept while working on this project. 
-It is like a diary or an informal `parallel git history`.
+It is like a diary or an informal `git history`.
