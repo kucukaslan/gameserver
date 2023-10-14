@@ -29,7 +29,10 @@ TournamentCache has a built-in cache, but it is not persistent. Maybe I can use 
 ```
 - [ ] make sure the tournament joint request queues are emptied after the tournament ends.
 so that the next tournament can start with empty queues.
-
+- [ ] User can join tournaments only if it has enough coins to join.
+- [ ] The user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
+- [ ] should add checks for whether user is joined to tournament
+- [ ] implement claim award
 
 ## Questions
 - [ ] endpoint access control (should require tokens?)
@@ -38,10 +41,9 @@ so that the next tournament can start with empty queues.
     this is important when there is significant time difference between the server and the client. e.g. player finished a level at 19.59.59.999 but the server received the event at 20.00.00.001 \
     Furthermore if there is ability to play offline then user may play in midday and then connect to the server in the evening to see that his progress was not counted for tournament. 
 
+- [ ] It seems sending request to enter the tournament is (blocking) action for the client. i.e. server will have it wait until the tournament  group is formed.  
 - [ ] similarly should server immediately anounce the results or wait for some buffer time to complete tasks being processed?
-- [ ] It seems sending request to enter the tournament is (blocking) action for the client. i.e. server will have it wait until the tournament starts.  
-- [ ] There user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
-- [ ] User can only spend coins to enter tournament.
+- [ ] GetGroupLeaderboardRequest: can I assume that the client will always send the group code? or should I add a check for that to retrieve by user?
 
 ## Journal
 There is also [Journal.md](Journal.md) file that I kept while working on this project. 

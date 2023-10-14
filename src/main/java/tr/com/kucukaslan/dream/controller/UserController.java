@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import tr.com.kucukaslan.dream.service.DBService;
 import tr.com.kucukaslan.dream.util.MyException;
 import tr.com.kucukaslan.dream.util.MyUtil;
+import tr.com.kucukaslan.dream.util.TournamentManager;
 
 @Slf4j
 @RestController
@@ -103,8 +104,14 @@ public class UserController {
                     e.toJSON().put(MyUtil.TRACE_ID, MDC.get(MyUtil.TRACE_ID)).toString());
         }
 
-        // TODO increase tournament score too if it is registered in a tournament
-        // maybe we can write it to redis and update it on another thread instead of blocking the request
+        // TODO maybe we can write it to redis and update it on another thread instead of blocking the request
+        try {
+            TournamentManager.getInstance().updateTournamentScore(user.getLong("user_id"));
+        } catch (SQLException | JSONException | MyException e) {
+            log.error("Error while updating tournament score {} due {} ", user, e.getMessage());
+            log.debug("{}", e);
+            log.debug(String.valueOf(e.getStackTrace()));
+        }
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                 .body(response.toString());

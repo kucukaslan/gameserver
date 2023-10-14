@@ -14,6 +14,8 @@ import java.util.Calendar;
 import java.util.Properties;
 import java.util.TimeZone;
 
+import javax.print.DocFlavor.STRING;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +33,7 @@ public class DBService {
     String DBPORT_KEY = "DBPORT";
     String DBNAME_KEY = "DBNAME";
 
-    private static DBService instance;
+    // private static DBService instance;
     Properties properties;
     Connection con;
 
@@ -48,6 +50,15 @@ public class DBService {
     private static final String GROUP_INSERT_SQL = "INSERT INTO `tournament_group` (`code`,  `tournament_id`) VALUES (?,?)";
     private static final String USER_GROUP_INSERT_SQL = "INSERT INTO `user_tournament_group` (`user_id`, `tournament_group_id`, `level_when_joined`, `score`, `rewardsClaimed` ) VALUES ( ?, ?, (SELECT level from user where user_id = ?), '0', '0')";
     private static final String USER_GROUP_SELECT_SQL = "SELECT * FROM `user_tournament_group` WHERE utg_id=?";
+
+    // SELECT * FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id;
+
+    // SELECT * FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_group_id = 22 order by utg.score DESC;
+    private static final String TOURNAMENT_GROUP_RANK = "SELECT u.user_id, u.name, u.countryISO2,  utg.score, utg.utg_id, t.tournament_id FROM `user` u join  user_tournament_group utg on  utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_group_id = ? order by utg.score DESC";
+    
+    private static final String TOURNAMENT_COUNTRY_RANK = "SELECT u.countryISO2, sum(utg.score) as score FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where t.tournament_id = ? GROUP by u.countryISO2 ORDER by sum(utg.score) DESC";
+    
+    private static final String TOURNAMENT_GROUP_BY_USER_AND_TOURNAMENT = "SELECT u.user_id, u.countryISO2, u.name, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_id = ? and u.user_id = ? order by utg.score DESC";
 
     private static final long LEVEL_AWARD = 25;
     private static final long[] TOURNAMENT_AWARDS = { 10000, 5000 };
@@ -67,10 +78,11 @@ public class DBService {
     }
 
     public void initialize() throws FileNotFoundException, IOException, SQLException {
-        if (instance == null) {
-            instance = new DBService();
+        DBService instance = DBService.getInstance();
+        if (instance.con != null && !instance.con.isClosed()) {
+            log.info("DBService is already initialized");
+            return;
         }
-        
         log.info("DBService initializing");
 
         properties = new Properties();
@@ -114,15 +126,21 @@ public class DBService {
         long user_id = rs.getLong(1);
         log.trace("SQL executed, user_id: {}", user_id);
 
-        // retrieve the inserted user
-        stmt = con.prepareStatement(USER_SELECT_SQL);
+        return selectUser(user_id);
+    }
+
+    public JSONObject selectUser(Long user_id) throws SQLException{
+        // retrieve the user
+        log.debug("selectUser with user_id: {}", user_id);
+        PreparedStatement stmt = con.prepareStatement(USER_SELECT_SQL);
         stmt.setLong(1, user_id);
-        log.trace("retrieving created user data SQL: {}", stmt.toString());
-        rs = stmt.executeQuery();
+        log.trace("retrieving user information SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
 
        return resultSetToJSON(rs).getJSONObject(0);
     }
+
 
     /**
      * increment user level by 1 and coins by 25
@@ -144,16 +162,31 @@ public class DBService {
             throw new MyException("Couldn't increment user level with user_id: "+user.getLong("user_id")  );
         }
         log.trace("SQL executed");
-
-        // retrieve the updated user
-        stmt = con.prepareStatement(USER_SELECT_SQL);
-        stmt.setLong(1, user.getLong("user_id"));
-        log.trace("retrieving updated user data SQL: {}", stmt.toString());
-        ResultSet rs = stmt.executeQuery();
-        log.trace("SQL executed, result set: {}", rs);
-
-        return resultSetToJSON(rs).getJSONObject(0);
+        return selectUser(user.getLong("user_id"));
     }
+
+    /**
+     * increment user score by 1
+     * @return
+     * @throws SQLException
+     * @throws JSONException
+     */
+    public void incrementTournamentScore(long tournament_group_id) throws SQLException {
+        updateTournamentScore(tournament_group_id, 1);
+    }
+
+    public void updateTournamentScore(long tournament_group_id, int score) throws SQLException {
+        PreparedStatement stmt = con.prepareStatement("UPDATE `user_tournament_group` SET `score`=`score`+? WHERE utg_id = ?");
+        stmt.setLong(1, score);
+        stmt.setLong(2, tournament_group_id);
+
+        log.trace("Executing SQL: {}", stmt.toString());
+        if (stmt.executeUpdate() != 1) {
+            log.error("Error while incrementing tournament score {}", tournament_group_id);
+        }
+        log.trace("SQL executed {}", stmt.toString());
+    }
+
 
     /**
      * Insert tournament to DB
@@ -165,13 +198,13 @@ public class DBService {
         // get the current time in UTC
         Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         log.info("Current time in UTC: {}", c.getTime());
-        String code = String.format("%d%02d%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH),
+        String code = String.format("%d%02d%02d", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
         log.info("Generated code: {}", code);
-        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), c.get(Calendar.MONTH),
+        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
         log.info("Generated start_time: {}", start_time);
-        String end_time = String.format("%d-%02d-%02d 20:00:00", c.get(Calendar.YEAR), c.get(Calendar.MONTH),
+        String end_time = String.format("%d-%02d-%02d 20:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
 
         PreparedStatement stmt = con.prepareStatement(TOURNAMENT_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
@@ -217,6 +250,15 @@ public class DBService {
     }
 
     /**
+     * Select current tournaments from DB
+     * @param
+     * @return
+     * @throws MyException
+    */
+    public JSONArray getTodaysTournaments() throws SQLException, JSONException, MyException {
+        throw new MyException("getTodaysTournaments method is not implemented");
+    }
+    /**
      * Select tournament from DB
      * @param tournamentId
      * @return
@@ -254,8 +296,17 @@ public class DBService {
         return jsonArray;
     }
 
-    public void close() throws SQLException {
-        con.close();
+    public static void close() {
+        DBService instance = DBService.getInstance();
+        try {
+            if (instance.con != null && !instance.con.isClosed())
+            { 
+                instance.con.close();
+            }
+        } catch (SQLException e) {
+            log.error("Error while closing DB connection {}", instance.con);
+        }
+        
     }
 
     public JSONArray insertGroup(JSONObject tournament) throws SQLException {
@@ -310,7 +361,7 @@ public class DBService {
         }
     }
 
-    private JSONObject getTournamentGroup(long user_tournament_group_id) throws SQLException {
+    public JSONObject getTournamentGroup(long user_tournament_group_id) throws SQLException {
 
         PreparedStatement stmt = con.prepareStatement(USER_GROUP_SELECT_SQL);
         stmt.setLong(1, user_tournament_group_id);
@@ -319,6 +370,39 @@ public class DBService {
         log.trace("SQL executed, result set: {}", rs);
 
         return resultSetToJSON(rs).getJSONObject(0);
+    }
+
+    public JSONObject getTournamentGroupIdByTournamentUserId(long tournament_id, long user_id) throws SQLException {
+        PreparedStatement stmt = con.prepareStatement(TOURNAMENT_GROUP_BY_USER_AND_TOURNAMENT);
+        stmt.setLong(1, tournament_id);
+        stmt.setLong(2, user_id);
+        log.trace("retrieving user_tournament_group SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+
+        return resultSetToJSON(rs).getJSONObject(0);
+    }
+
+
+
+    public JSONArray getTournamentGroupLeaderboard(long tournament_group_id) throws SQLException {
+        PreparedStatement stmt = con.prepareStatement(TOURNAMENT_GROUP_RANK);
+        stmt.setLong(1, tournament_group_id);
+        log.trace("retrieving tournament group leaderboard SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+
+        return resultSetToJSON(rs);
+    }
+
+    public JSONArray getTournamentCountryLeaderBoard(long tournament_id) throws SQLException {
+        PreparedStatement stmt = con.prepareStatement(TOURNAMENT_COUNTRY_RANK);
+        stmt.setLong(1, tournament_id);
+        log.trace("retrieving tournament group leaderboard SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+
+        return resultSetToJSON(rs);
     }
 
 }

@@ -23,8 +23,10 @@ public class DreamApplication {
 				DBService.getInstance().initialize();
 			} catch (IOException | SQLException e) {
 				log.error("Error while initializing DBService due to {}", e.getMessage());
-				log.debug("{}", e);
-				log.debug(String.valueOf(e.getStackTrace()));
+				log.debug("Exception: {}", e);
+				log.debug("Stack trace: {}",String.valueOf(e.getStackTrace()));
+				DBService.close();
+				System.exit(1);
 			}
 			log.info("DBService initialized");
 				

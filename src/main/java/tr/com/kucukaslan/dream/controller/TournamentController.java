@@ -8,8 +8,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import tr.com.kucukaslan.dream.service.DBService;
+import tr.com.kucukaslan.dream.util.MyException;
 import tr.com.kucukaslan.dream.util.MyUtil;
 import tr.com.kucukaslan.dream.util.TournamentGroup;
 import tr.com.kucukaslan.dream.util.TournamentManager;
@@ -44,9 +48,69 @@ public class TournamentController {
     public ResponseEntity<String> enterTournamentRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
         log.debug("EnterTournamentRequest method is called");
-        //TODO: implement
+        // TODO check if already joined
+        JSONObject user = new JSONObject();
+        if (MyUtil.isJSONFormatted(body)) {
+            user = new JSONObject(body);
+            if (!user.has("user_id")) {
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "user_id is missing").toString());
+            }
+        } else {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "body is not a valid json").toString());
+        }
+
+        try {
+            user = DBService.getInstance().selectUser(user.getLong("user_id"));
+        } catch (SQLException | JSONException e) {
+            return MyUtil.getResponseEntity(e,  "Exception retrieving user data " + user.getLong("user_id"));
+             
+        }
+        long user_id = user.getLong("user_id");
+        String country = user.getString("countryISO2");
+        log.debug("{}: joining country: {} ", user_id, country);
+        TournamentGroup group;
+        try {
+            group = TournamentManager.getInstance().join(country, user_id);
+        } catch (SQLException | JSONException | MyException e) {
+            return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament");
+        }
+        while (true) {
+            try {
+                // TODO LOL
+                log.debug("{}:{} waiting group {}", user_id, country, group);
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            if (group.size() == 5) {
+                break;
+            }
+        }
+        log.debug("{} joined country {} to group: {} ",user_id, country, group);
+        // try {
+        //     group.wait();
+        // } catch (InterruptedException e) {
+        //     // TODO Auto-generated catch block
+        //     e.printStackTrace();
+        // }
+        log.debug("{}: woke up {}", user_id, String.valueOf(group));
+        JSONObject relation = null;
+        try {
+            relation = TournamentManager.getInstance().join(user_id, group.getGroupJson().getLong("tournament_group_id"));
+        } catch (SQLException | JSONException e) {
+            return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament group");
+        }
+        log.debug("{}: joined to tournament group relation: {} ", user_id, relation);
+
+        // todo return leaderboard
+
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(new JSONObject().put("message", "not entered to tournament LoL").toString());
+                .body(relation.toString());
     }
 
     /**
@@ -69,33 +133,122 @@ public class TournamentController {
     public ResponseEntity<String> getGroupRankRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
         log.debug("GetGroupRankRequest method is called");
-        //TODO: implement
-        return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
-                .body(new JSONObject().put("message", "rank is not retrieved LoL").toString());
+        JSONObject input;
+        if (MyUtil.isJSONFormatted(body)) {
+            input = new JSONObject(body);
+            if (!input.has("user_id")) {
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "`user_id` field is required").toString());
+            }
+        } else {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "body is not a valid json").toString());
+        }
+        Long user_id =input.getLong("user_id");
+        Long tournament_group_id = input.optLong("tournament_group_id");
+        Long tournament_id = input.optLong("tournament_id");
+        try {
+            if(!input.has("tournament_id")) {
+                log.debug("request does not contain tournament_id, retrieving tournament group of the user by user_id");
+                tournament_id= TournamentManager.getInstance().getTodaysTournament().getLong("tournament_id");
+            }
+                
+            tournament_group_id = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id ).getLong("tournament_group_id");
+            
+            JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+            int rank = 1;
+            long score = 0;
+            for(int i = 0; i < group.length(); i++){
+                if(group.getJSONObject(i).getLong("user_id") == user_id){
+                    rank = i+1;
+                    score = group.getJSONObject(i).optLong("score");
+                    break;
+                }
+            }
+            log.debug("rank of {} in tournament {} in group {} is {} with score", user_id, tournament_id, tournament_group_id, rank, score);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("rank", rank).put("user_id", "user_id").put("score", score).put("tournament_id", tournament_id).toString());
+        } catch (SQLException | JSONException | MyException e) {
+            return MyUtil.getResponseEntity(e,  "Exception while retrieving tournament group " + tournament_group_id);
+        } 
     }
-
-    /**
-     * GetGroupLeaderboardRequest: This request fetches the leaderboard data of a tournament group.
-    */
-    @RequestMapping(value = "/GetGroupLeaderboardRequest", method = { RequestMethod.GET, RequestMethod.POST })
-    public ResponseEntity<String> getGroupLeaderboardRequest(@RequestBody(required = false) String body, HttpServletRequest httpRequest) {
-        MyUtil.setTraceId(httpRequest);
-        log.debug("GetGroupLeaderboardRequest method is called");
-        //TODO: implement
-        return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
-                .body(new JSONObject().put("message", "leaderboard is not retrieved LoL").toString());
-    }
-
-    /**
+/**
      * GetCountryLeaderboardRequest: This request retrieves the leaderboard data of the countries for a tournament.
     */
     @RequestMapping(value = "/GetCountryLeaderboardRequest", method = { RequestMethod.GET, RequestMethod.POST })
     public ResponseEntity<String> getCountryLeaderboardRequest(@RequestBody(required = false) String body, HttpServletRequest httpRequest){
         MyUtil.setTraceId(httpRequest);
         log.debug("GetCountryLeaderboardRequest method is called");
-        //TODO: implement
-        return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
-                .body(new JSONObject().put("message", "leaderboard is not retrieved LoL").toString());
+        JSONObject input = new JSONObject();
+        if (MyUtil.isJSONFormatted(body)) {
+            input = new JSONObject(body);
+        }
+
+        Long tournament_id = input.optLong("tournament_id");
+        try {
+            if(!input.has("tournament_id")) {
+                log.debug("request does not contain tournament_id, retrieving today's tournament");
+                JSONObject tourn = TournamentManager.getInstance().getTodaysTournament();
+                
+                tournament_id = tourn.getLong("tournament_id");
+            }
+            
+            JSONArray leaderborad = DBService.getInstance().getTournamentCountryLeaderBoard(tournament_id);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                    .body(leaderborad.toString());
+        } catch (SQLException | JSONException | MyException e) {
+            return MyUtil.getResponseEntity(e,  "Exception while retrieving tournament group " + tournament_id);
+        } 
+    }
+
+    /**
+     *
+     * Every tournament group has its leaderboard.
+     * It is sorted by the highest to lowest scores, displaying user ID, username, country, and tournament score.
+     * Provided leaderboard data should be real-time.
+     * The first-place user wins 10,000 coins, while the second-place user wins 5,000 coins.
+     * GetGroupLeaderboardRequest: This request fetches the leaderboard data of a tournament group.
+     * @param body if it contains tournament_group_id it will be used to retrieve the leaderboard of the group
+     * otherwise it will check for user_id and retrieve the leaderboard of the group that user is in. 
+     * 
+    */
+    @RequestMapping(value = "/GetGroupLeaderboardRequest", method = {  RequestMethod.POST })
+    public ResponseEntity<String> getGroupLeaderboardRequest(@RequestBody String body, HttpServletRequest httpRequest) {
+        MyUtil.setTraceId(httpRequest);
+        log.debug("GetGroupLeaderboardRequest method is called");
+        JSONObject input;
+        if (MyUtil.isJSONFormatted(body)) {
+            input = new JSONObject(body);
+            if (!input.has("tournament_group_id") && !input.has("user_id")) {
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "tournament_group_id is missing, there is no `user_id` to fallback either").toString());
+            }
+        } else {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "body is not a valid json").toString());
+        }
+
+        Long tournament_group_id = input.optLong("tournament_group_id");
+        try {
+            if(!input.has("tournament_group_id")) {
+                log.debug("request does not contain tournament_id, retrieving tournament group of the user by user_id");
+                JSONObject tourn = TournamentManager.getInstance().getTodaysTournament();
+                
+                tournament_group_id = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tourn.getLong("tournament_id"), input.getLong("user_id")).getLong("tournament_group_id");
+            }
+            
+            JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+            // user ID, username, country, and tournament score.
+            // todo convert variable names?
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                    .body(group.toString());
+        } catch (SQLException | JSONException | MyException e) {
+            return MyUtil.getResponseEntity(e,  "Exception while retrieving tournament group " + tournament_group_id);
+        } 
     }
 
     @RequestMapping("/test")
@@ -111,7 +264,7 @@ public class TournamentController {
                 TournamentGroup group;
                 try {
                     group = TournamentManager.getInstance().join(countries[j.intValue()], id);
-                } catch (SQLException | JSONException e) {
+                } catch (SQLException | JSONException | MyException e) {
                     log.error("error while joining country: {} ", countries[j.intValue()], e);
                     return ;
                 }

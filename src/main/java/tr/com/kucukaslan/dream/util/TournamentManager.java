@@ -23,15 +23,14 @@ public class TournamentManager {
     private static TournamentManager instance = null;
 
     private TournamentManager() {
-         queueMap = new HashMap<>();
+        queueMap = new HashMap<>();
         queueMap.put("TR", new ConcurrentLinkedQueue<TournamentGroup>());
         queueMap.put("US", new ConcurrentLinkedQueue<TournamentGroup>());
         queueMap.put("DE", new ConcurrentLinkedQueue<TournamentGroup>());
         queueMap.put("FR", new ConcurrentLinkedQueue<TournamentGroup>());
         queueMap.put("GB", new ConcurrentLinkedQueue<TournamentGroup>());
         tournamentCacheByCode = new HashMap<>();
-        
-    
+
     }
 
     public synchronized static TournamentManager getInstance() {
@@ -41,8 +40,11 @@ public class TournamentManager {
         return instance;
     }
 
-
-    public synchronized TournamentGroup join(String countryISO2, Long userId) throws SQLException, JSONException {
+    public synchronized TournamentGroup join(String countryISO2, Long userId) throws SQLException, JSONException, MyException {
+        Calendar now = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        if( !isTournamentHour(now)) {
+            throw new MyException("It is not tournament hour cannot join to tournament" + now);
+        }
         TournamentGroup group = queueMap.get(countryISO2).poll();
         log.trace("{}: requested to join country: {} group {}", userId, countryISO2, group);
         if (group == null) {
@@ -61,10 +63,10 @@ public class TournamentManager {
         }
 
         if (group.size() == 5) {
-            JSONObject curTourn = getCurrentTournament();
-            log.trace("joining {} from {}  to tournament {}", userId, countryISO2, curTourn.toString() );
+            JSONObject curTourn = getTodaysTournament();
+            log.trace("joining {} from {}  to tournament {}", userId, countryISO2, curTourn.toString());
             JSONArray js = DBService.getInstance().insertGroup(curTourn);
-            
+
             group.setGroupJson(js.getJSONObject(0));
 
             log.trace("TODO group {} is full, and created in the database", group);
@@ -74,24 +76,76 @@ public class TournamentManager {
         return group;
     }
 
-    public synchronized JSONObject getCurrentTournament() throws SQLException, JSONException {
+    /** 
+     * Returns the tournament of the day even after the tournament is finished
+     * 
+     */
+    public synchronized JSONObject getTodaysTournament() throws SQLException, JSONException, MyException {
         Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        String tournamentCode =String.format("%d%02d%02d", c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
-        if(tournamentCacheByCode.containsKey(tournamentCode)) {
+
+        // month starts from 0 
+        String tournamentCode = String.format("%d%02d%02d", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH));
+        if (tournamentCacheByCode.containsKey(tournamentCode)) {
             log.trace("tournament {} is found in cache", tournamentCode);
             return tournamentCacheByCode.get(tournamentCode);
         }
 
+
         JSONArray js = DBService.getInstance().getCurrentTournaments();
-        if(js.length() == 0) {
+        if (js.length() == 0) {
             log.trace("no tournament found for today creating one");
+            log.info("emptying queues before creating a new tournament");
+            emptyQueues();
             js = DBService.getInstance().insertTournament();
         }
+        tournamentCacheByCode.put(tournamentCode, js.getJSONObject(0));
         return js.getJSONObject(0);
     }
 
-    public JSONObject join(Long user_id, Long tournament_group_id) throws SQLException{
+    public JSONObject join(Long user_id, Long tournament_group_id) throws SQLException {
         return DBService.getInstance().insertUserGroup(user_id, tournament_group_id);
+    }
+
+    public boolean isTournamentHour() {
+        return isTournamentHour(Calendar.getInstance(TimeZone.getTimeZone("UTC")));
+    }
+    public boolean isTournamentHour(Calendar now) {
+        // check if it is tournament hours 00:00 - 20:00
+        // since the tournament starts at 00:00 we don't need to check the start hour
+        Calendar endHour = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        endHour.set(Calendar.HOUR_OF_DAY, 20);
+        endHour.set(Calendar.MINUTE, 0);
+        endHour.set(Calendar.SECOND, 0);
+        endHour.set(Calendar.MILLISECOND, 0);
+         
+        if( now.after(endHour)) {
+            log.trace("{} it is not tournament hours", now);
+            return false;
+        }
+        return true;
+    }
+
+    private void emptyQueues() {
+        for (String country : queueMap.keySet()) {
+            log.trace("emptying queue of country: {}, removing {} elements", country, queueMap.get(country).size());
+            queueMap.get(country).clear();
+        }
+    }
+
+    public void updateTournamentScore(long user_id) throws SQLException, JSONException, MyException 
+    {
+        if(!isTournamentHour()) {
+            return;
+        }
+
+            JSONObject tournament = getTodaysTournament();
+            long tournament_id = tournament.getLong("tournament_id");
+            JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id);
+            long tournament_group_id = tug.getLong("utg_id");
+            DBService.getInstance().incrementTournamentScore(tournament_group_id);
+
+
     }
 
 }

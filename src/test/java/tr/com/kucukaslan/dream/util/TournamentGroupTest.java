@@ -41,7 +41,7 @@ public class TournamentGroupTest {
                 TournamentGroup group;
                 try {
                     group = TournamentManager.getInstance().join(countries[j.intValue()], j);
-                } catch (SQLException | JSONException e) {
+                } catch (SQLException | JSONException | MyException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                     return;

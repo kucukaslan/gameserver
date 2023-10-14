@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import org.json.JSONObject;
 import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -68,5 +71,17 @@ public class MyUtil {
 
     public static String getRandomCountry() {
         return countries[(int) (Math.random() * countries.length)];
+    }
+
+    public static ResponseEntity<String> getResponseEntity(Exception ex, String... args) {
+        log.error("Error {} due to {}", args, ex.getMessage());
+        log.debug("{}", ex);
+        log.trace("{}", String.valueOf(ex.getStackTrace()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
+                    .body(
+                            new JSONObject()
+                                    .put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                    .put("message", String.valueOf(args))
+                                    .put("exception", ex.getMessage()).toString());
     }
 }
