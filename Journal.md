@@ -9,7 +9,7 @@ which may not even be used in the project.
 ## 11.10
 2 and half hours
 - Create MySQL DB and draft tables schematic:
-![schematic](extras/dream.svg)
+![schematic](./extras/dream.svg)
 - Create a new Spring project with barebones (add endpoints, that's it)
 
 ## 11.11-12
@@ -30,7 +30,7 @@ will need to be updated to handle tournament scorekeeping if there any.
 I'm back to writing SQLs LoL. Gaining experience huh?
 
 ## 11.14 
-4 hours (I don't know anymore :D )
+5+ hours (I don't know anymore :D )
 - My tests to entering tournament logic as in the temporay `/test` endpoints seems 
 promising except tha fact that I use Thread.sleep() instead of establishing pub-sub (or event listener) structure.
 I've made naive attempts to use Java's Monitor concurrency pattern with wait/notifyAll methods
@@ -42,8 +42,18 @@ As it turns out the real mistake here was that I have forgotten to shutdown the 
 If I hadn't forgotten to shutdown the executorService, that seconds mistake woulnd't matter.
 At least I could use this structure in tests to simulate multiple users. 
 
+- updated db schema:
+![schematic](./extras/dreamv0.1.0.svg)
+
+## 11.15
+2 hours
+- I've added some consistency checks to the endpoints, such as checking if the user exists before retrieving leaderboard or updating level. Checking if the user has enough coins to join a tournament [^monolith].
 
 
-[^timeunits]: ![TimeUnits conversion mistake](extras/timeunits.png)
+[^timeunits]: [TimeUnits conversion mistake](extras/timeunits.png)
 
-[^cope]: cope harder ![copium](https://i.kym-cdn.com/photos/images/original/001/932/122/2bd.png)
+[^cope]: cope harder [copium](https://i.kym-cdn.com/photos/images/original/001/932/122/2bd.png)
+
+[^monolith]: there is an important assumption that there is a single server that run's this program. Based on this assumption I, 1st, deduct the entrance fee, then add the user to the tournament. If there were multiple servers, then I should have used transaction etc. to ensure atomicity. (I did not handle the case where coins are deducted but server crashed before registering user the tournament). \
+Ideally one would keep logs (possibly on a db table) of coin spends/earning at least for the sake of reference.
+

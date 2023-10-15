@@ -40,10 +40,33 @@ public class TournamentManager {
         return instance;
     }
 
-    public synchronized TournamentGroup join(String countryISO2, Long userId) throws SQLException, JSONException, MyException {
+    /**
+     * 
+     * @param countryISO2
+     * @param user
+     * @return Tournament Group that user joined, null if user is already in a group
+     * @throws SQLException
+     * @throws JSONException
+     * @throws MyException if user is already registered to a tournament or does not have enough coin
+     */
+    public synchronized TournamentGroup join(String countryISO2, JSONObject user) throws SQLException, JSONException, MyException {
+        Long userId = user.getLong("user_id");
+        Long coin = user.getLong("coin");
         Calendar now = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         if( !isTournamentHour(now)) {
             throw new MyException("It is not tournament hour cannot join to tournament" + now);
+        }
+        JSONObject tournament = getTodaysTournament();
+        long tournament_id = tournament.getLong("tournament_id");
+        JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, userId);
+        if(tug != null) {
+            log.trace("user {} is already joined to tournament", userId);
+            throw new MyException("User is already joined to tournament");
+        }
+
+        if (coin < DBService.TOURNAMENT_ENTRANCE_FEE) {
+            throw new MyException("Not enough coin to join tournament. Tournament entrance fee is "
+                    + DBService.TOURNAMENT_ENTRANCE_FEE + " but user only has " + coin);
         }
         TournamentGroup group = queueMap.get(countryISO2).poll();
         log.trace("{}: requested to join country: {} group {}", userId, countryISO2, group);
@@ -59,17 +82,15 @@ public class TournamentManager {
                 }
             }
         } else {
+            // if this is going to be fifth then create a tournament group in the database
+            // and set the group json to avoid race conditions
+            if (group.size() == 4) {
+                log.trace("joining {} from {}  to tournament {}", userId, countryISO2, tournament.toString());
+                JSONArray js = DBService.getInstance().insertGroup(tournament); 
+                group.setGroupJson(js.getJSONObject(0));
+            }
             group.put(countryISO2, userId);
-        }
-
-        if (group.size() == 5) {
-            JSONObject curTourn = getTodaysTournament();
-            log.trace("joining {} from {}  to tournament {}", userId, countryISO2, curTourn.toString());
-            JSONArray js = DBService.getInstance().insertGroup(curTourn);
-
-            group.setGroupJson(js.getJSONObject(0));
-
-            log.trace("TODO group {} is full, and created in the database", group);
+            log.trace("group {} is full, and created in the database", group);
             notifyAll();
         }
         log.trace("{}: joined country: {} group {}", userId, countryISO2, group);
@@ -92,7 +113,7 @@ public class TournamentManager {
         }
 
 
-        JSONArray js = DBService.getInstance().getCurrentTournaments();
+        JSONArray js = DBService.getInstance().getTodaysTournaments();
         if (js.length() == 0) {
             log.trace("no tournament found for today creating one");
             log.info("emptying queues before creating a new tournament");
@@ -139,13 +160,15 @@ public class TournamentManager {
             return;
         }
 
-            JSONObject tournament = getTodaysTournament();
-            long tournament_id = tournament.getLong("tournament_id");
-            JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id);
-            long tournament_group_id = tug.getLong("utg_id");
-            DBService.getInstance().incrementTournamentScore(tournament_group_id);
-
-
+        JSONObject tournament = getTodaysTournament();
+        long tournament_id = tournament.getLong("tournament_id");
+        JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id);
+        if(tug == null) {
+            log.trace("user {} is not in any tournament group, so tournament score is not updated", user_id);
+            return;
+        }
+        long tournament_group_id = tug.getLong("utg_id");
+        DBService.getInstance().incrementTournamentScore(tournament_group_id);
     }
 
 }

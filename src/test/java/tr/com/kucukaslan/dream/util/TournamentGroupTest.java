@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ public class TournamentGroupTest {
                 log.debug("{}: joining country: {} ", j.intValue(), countries[j.intValue()]);
                 TournamentGroup group;
                 try {
-                    group = TournamentManager.getInstance().join(countries[j.intValue()], j);
+                    group = TournamentManager.getInstance().join(countries[j.intValue()], new JSONObject().put("user_id", j).put("coin", 1000L));
                 } catch (SQLException | JSONException | MyException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();

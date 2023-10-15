@@ -47,15 +47,8 @@ public class UserController {
         JSONObject response = new JSONObject();
         try {
             response = DBService.getInstance().insertUser(user);
-        } catch (SQLException | JSONException e) {
-            log.error("Error while inserting user {} due {} ", user, e.getMessage());
-            log.debug("{}", e);
-            log.debug(String.valueOf(e.getStackTrace()));
-            return ResponseEntity.status(500).contentType(MediaType.APPLICATION_JSON)
-                    .body(
-                            new JSONObject()
-                                    .put("traceId", MDC.get(MyUtil.TRACE_ID))
-                                    .put("message", "Internal Server Error, couldn't create user.").toString());
+        } catch (SQLException | JSONException | MyException e) {
+            MyUtil.getResponseEntity(e);
         }
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
@@ -108,7 +101,8 @@ public class UserController {
         try {
             TournamentManager.getInstance().updateTournamentScore(user.getLong("user_id"));
         } catch (SQLException | JSONException | MyException e) {
-            log.error("Error while updating tournament score {} due {} ", user, e.getMessage());
+            // TODO should we return error?
+            log.debug("Error while updating tournament score {} due {} ", user, e.getMessage());
             log.debug("{}", e);
             log.debug(String.valueOf(e.getStackTrace()));
         }

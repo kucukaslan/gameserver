@@ -13,6 +13,11 @@ Though, I prefer setting this project to TRACE, and rest (`root`) to INFO.
 
 
 ## Build and Run
+First the database must be created.
+I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file.
+
+
+
 ```bash
 # mvn clean package
 mvn spring-boot:run

@@ -65,24 +65,30 @@ public class TournamentController {
 
         try {
             user = DBService.getInstance().selectUser(user.getLong("user_id"));
-        } catch (SQLException | JSONException e) {
-            return MyUtil.getResponseEntity(e,  "Exception retrieving user data " + user.getLong("user_id"));
-             
+        } catch (SQLException | MyException | JSONException e) {
+            return MyUtil.getResponseEntity(e, "User cannot be found " + user.getLong("user_id"));
         }
         long user_id = user.getLong("user_id");
         String country = user.getString("countryISO2");
+
         log.debug("{}: joining country: {} ", user_id, country);
         TournamentGroup group;
         try {
-            group = TournamentManager.getInstance().join(country, user_id);
+            group = TournamentManager.getInstance().join(country, user);
         } catch (SQLException | JSONException | MyException e) {
+            // TODO a possible exception is that user is already joined to the tournament
+            // It might be sensible to discard that exception make this operation `idempotent`
             return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament");
         }
         while (true) {
+            long count = 0l;
+            long sleep = 500l;
             try {
-                // TODO LOL
-                log.debug("{}:{} waiting group {}", user_id, country, group);
-                Thread.sleep(500);
+                // TODO What a shame LOL
+
+                if (count * sleep % 10000L == 0)
+                    log.debug("{}:{} waiting group {}", user_id, country, group);
+                Thread.sleep(sleep);
             } catch (InterruptedException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -154,8 +160,15 @@ public class TournamentController {
                 log.debug("request does not contain tournament_id, retrieving tournament group of the user by user_id");
                 tournament_id= TournamentManager.getInstance().getTodaysTournament().getLong("tournament_id");
             }
-                
-            tournament_group_id = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id ).getLong("tournament_group_id");
+
+            JSONObject tournamentGroup = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id,
+                    user_id);
+            if (tournamentGroup == null) {
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "user is not registered to tournament " + tournament_id).toString());
+            }
+            tournament_group_id = tournamentGroup.getLong("tournament_group_id");
             
             JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
             int rank = 1;
@@ -235,15 +248,24 @@ public class TournamentController {
         Long tournament_group_id = input.optLong("tournament_group_id");
         try {
             if(!input.has("tournament_group_id")) {
-                log.debug("request does not contain tournament_id, retrieving tournament group of the user by user_id");
+                log.debug(
+                        "request does not contain tournament_group_id, retrieving tournament group of the user by user_id");
                 JSONObject tourn = TournamentManager.getInstance().getTodaysTournament();
                 
-                tournament_group_id = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tourn.getLong("tournament_id"), input.getLong("user_id")).getLong("tournament_group_id");
+                JSONObject tournamentGroup = DBService.getInstance()
+                        .getTournamentGroupIdByTournamentUserId(tourn.getLong("tournament_id"),
+                                input.getLong("user_id"));
+                if (tournamentGroup == null) {
+                    return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                            .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                    .put("message",
+                                            "user is not registered to tournament " + tourn.getLong("tournament_id"))
+                                    .toString());
+                }
+                tournament_group_id = tournamentGroup.getLong("tournament_group_id");
             }
             
             JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
-            // user ID, username, country, and tournament score.
-            // todo convert variable names?
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                     .body(group.toString());
         } catch (SQLException | JSONException | MyException e) {
@@ -256,23 +278,28 @@ public class TournamentController {
         String[] countries = new String[] { "TR", "US", "DE", "FR", "GB" };
         log.info("request is received");
         ExecutorService executorService = Executors.newFixedThreadPool(5);
-        for (Long i = 0L; i < 5; i++) {
-            Long id=i.longValue()*1000 + Math.round(Math.random()*1000d);
-            Long j = i.longValue();
+        for (Long i = 0L; i < 10000; i++) {
+            Long id = i.longValue() * 100000 + Math.round(Math.random() * 100000d);
+            Long j = i.longValue() % 5;
             executorService.execute(() -> {
                 log.debug("{}: joining country: {} ", id, countries[j.intValue()]);
                 TournamentGroup group;
                 try {
-                    group = TournamentManager.getInstance().join(countries[j.intValue()], id);
+                    group = TournamentManager.getInstance().join(countries[j.intValue()],
+                            new JSONObject().put("user_id", id).put("coin", 1000L));
                 } catch (SQLException | JSONException | MyException e) {
                     log.error("error while joining country: {} ", countries[j.intValue()], e);
                     return ;
                 }
-                while(true) {
+                while (true) {
+                    long count = 0l;
+                    long sleep = 10l;
                     try {
-                        // TODO LOL
+                        // TODO What a shame LOL
+
+                        if (count * sleep % 10000L == 0)
                         log.debug("{}:{} waiting group {}", id,  countries[j.intValue()], group);
-                        Thread.sleep(5000);
+                        Thread.sleep(sleep);
                     } catch (InterruptedException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -295,7 +322,7 @@ public class TournamentController {
                 } catch (SQLException | JSONException e) {
                     log.error("error while joining country: {} ", countries[j.intValue()], e);    
                 }
-                log.debug("{}: joined to tournament group relation: {} ", j, relation);
+                log.debug("{}: joined to tournament group relation: {} ", id, relation);
 
             });
         }

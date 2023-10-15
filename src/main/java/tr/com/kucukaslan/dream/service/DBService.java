@@ -14,8 +14,6 @@ import java.util.Calendar;
 import java.util.Properties;
 import java.util.TimeZone;
 
-import javax.print.DocFlavor.STRING;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,16 +36,19 @@ public class DBService {
     Connection con;
 
     private static final String USER_INSERT_SQL = "INSERT INTO user (countryISO2, name) VALUES (?, ?)";
-    // UPDATE `user` SET `level` = '1', `coin` = '5025', `name` = 'Wow updated', `date_modified` = CURRENT_TIMESTAMP WHERE `user`.`user_id` = 10
-    private static final String USER_UPDATE_SQL = "UPDATE  `user` SET `level` = `level` + ?, `coin` = `coin` + ?, `date_modified` = CURRENT_TIMESTAMP WHERE `user`.`user_id` = ?";
+    // UPDATE `user` SET `level` = '1', `coin` = '5025', `name` = 'Wow updated', `date_modified` = UTC_TIMESTAMP(6) WHERE `user`.`user_id` = 10
+    private static final String USER_UPDATE_SQL = "UPDATE  `user` SET `level` = `level` + ?, `coin` = `coin` + ?, `date_modified` = UTC_TIMESTAMP(6) WHERE `user`.`user_id` = ?";
     private static final String USER_SELECT_SQL = "SELECT * FROM `user` WHERE `user_id` = ?";
 
-    // INSERT INTO `tournament` ( `code`, `start_time`, `end_time`, `date_created`) VALUES ('20231013', '2023-10-13 00:00:00', '2023-10-13 20:00:00', current_timestamp());
-    private static final String TOURNAMENT_INSERT_SQL = "INSERT INTO `tournament` ( `code`, `start_time`, `end_time`, `date_created`) VALUES (?, ?, ?, current_timestamp())";
+    // INSERT INTO `tournament` ( `code`, `start_time`, `end_time`, `date_created`) VALUES ('20231013', '2023-10-13 00:00:00', '2023-10-13 20:00:00', UTC_TIMESTAMP(6));
+    private static final String TOURNAMENT_INSERT_SQL = "INSERT INTO `tournament` ( `code`, `start_time`, `end_time`, `date_created`) VALUES (?, ?, ?, UTC_TIMESTAMP(6))";
     private static final String TOURNAMENT_SELECT_SQL = "SELECT * FROM `tournament` WHERE `tournament_id` = ?";
-    private static final String TOURNAMENT_SELECT_ALL_CURRENT_TOURNAMENTS = "SELECT * FROM `tournament` WHERE `end_time` > CURRENT_TIMESTAMP AND `start_time` < CURRENT_TIMESTAMP";
+    private static final String TOURNAMENT_SELECT_ALL_CURRENT_TOURNAMENTS = "SELECT * FROM `tournament` WHERE `end_time` <= UTC_TIMESTAMP(6) AND `start_time` < UTC_TIMESTAMP(6)";
+    private static final String TOURNAMENT_SELECT_ALL_TODAYS_TOURNAMENTS = "SELECT * FROM `tournament` WHERE `end_time` <= ? AND `start_time` >= ?";
 
     private static final String GROUP_INSERT_SQL = "INSERT INTO `tournament_group` (`code`,  `tournament_id`) VALUES (?,?)";
+
+    private static final String USER_DEDUCT_COIN = "UPDATE  `user` SET `coin` = `coin` - ?, `date_modified` = UTC_TIMESTAMP(6) WHERE `user`.`user_id` = ?";
     private static final String USER_GROUP_INSERT_SQL = "INSERT INTO `user_tournament_group` (`user_id`, `tournament_group_id`, `level_when_joined`, `score`, `rewardsClaimed` ) VALUES ( ?, ?, (SELECT level from user where user_id = ?), '0', '0')";
     private static final String USER_GROUP_SELECT_SQL = "SELECT * FROM `user_tournament_group` WHERE utg_id=?";
 
@@ -62,7 +63,7 @@ public class DBService {
 
     private static final long LEVEL_AWARD = 25;
     private static final long[] TOURNAMENT_AWARDS = { 10000, 5000 };
-
+    public static final long TOURNAMENT_ENTRANCE_FEE = 1000L;
     private volatile JSONObject tournament = null;
 
     private static class SingletonHolder {
@@ -97,11 +98,11 @@ public class DBService {
         String dbName = properties.getProperty(DBNAME_KEY);
 
         log.info("All properties are present, establishing connection to DB");
-        con = DriverManager.getConnection("jdbc:mysql://" + dbHost + ":" + dbPort + "/" + dbName, dbUser, dbPass);
+        con = DriverManager.getConnection("jdbc:mysql://" + dbHost + ":" + dbPort + "/" + dbName+"?allowMultiQueries=YES&connectionTimeZone=UTC", dbUser, dbPass);
         log.info("DB Connection to {} established", con.getMetaData().getURL());
     }
 
-    public JSONObject insertUser(JSONObject user) throws SQLException{
+    public JSONObject insertUser(JSONObject user) throws SQLException, MyException{
         // insert user and get the id
         ResultSet rs;
         PreparedStatement stmt = con.prepareStatement(USER_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
@@ -129,7 +130,7 @@ public class DBService {
         return selectUser(user_id);
     }
 
-    public JSONObject selectUser(Long user_id) throws SQLException{
+    public JSONObject selectUser(Long user_id) throws SQLException, MyException{
         // retrieve the user
         log.debug("selectUser with user_id: {}", user_id);
         PreparedStatement stmt = con.prepareStatement(USER_SELECT_SQL);
@@ -137,8 +138,11 @@ public class DBService {
         log.trace("retrieving user information SQL: {}", stmt.toString());
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
-
-       return resultSetToJSON(rs).getJSONObject(0);
+        JSONArray js = resultSetToJSON(rs);
+        if(js!= null && js.length() == 0){
+            throw new MyException("User with user_id: "+user_id+" does not exist");
+        }
+       return js.getJSONObject(0);
     }
 
 
@@ -256,7 +260,17 @@ public class DBService {
      * @throws MyException
     */
     public JSONArray getTodaysTournaments() throws SQLException, JSONException, MyException {
-        throw new MyException("getTodaysTournaments method is not implemented");
+        PreparedStatement stmt = con.prepareStatement(TOURNAMENT_SELECT_ALL_TODAYS_TOURNAMENTS);
+        Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH));
+        String end_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH), 1+c.get(Calendar.DAY_OF_MONTH));
+        stmt.setString(1, end_time);
+        stmt.setString(2, start_time);
+        log.trace("retrieving current tournaments SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+        return resultSetToJSON(rs);
     }
     /**
      * Select tournament from DB
@@ -335,7 +349,16 @@ public class DBService {
 
     public JSONObject insertUserGroup(Long user_id, Long tournament_group_id) throws SQLException {
 
-        PreparedStatement stmt = con.prepareStatement(USER_GROUP_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
+        PreparedStatement stmt = con.prepareStatement(USER_DEDUCT_COIN);
+
+        stmt.setLong(1, TOURNAMENT_ENTRANCE_FEE);
+        stmt.setLong(2, user_id);
+        
+        if(stmt.executeUpdate() != 1) {
+            log.warn("Error while deducting coin from user {}, he is lucky will join for free hehehe such a user may not exist though", user_id);
+        }
+        
+        stmt = con.prepareStatement(USER_GROUP_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
         stmt.setLong(1, user_id);
         stmt.setLong(2, tournament_group_id);
         stmt.setLong(3, user_id);
@@ -372,6 +395,13 @@ public class DBService {
         return resultSetToJSON(rs).getJSONObject(0);
     }
 
+    /**
+     * 
+     * @param tournament_id
+     * @param user_id
+     * @return null if user is not in any tournament group
+     * @throws SQLException
+     */
     public JSONObject getTournamentGroupIdByTournamentUserId(long tournament_id, long user_id) throws SQLException {
         PreparedStatement stmt = con.prepareStatement(TOURNAMENT_GROUP_BY_USER_AND_TOURNAMENT);
         stmt.setLong(1, tournament_id);
@@ -380,7 +410,11 @@ public class DBService {
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
 
-        return resultSetToJSON(rs).getJSONObject(0);
+        JSONArray  js = resultSetToJSON(rs);
+        if(js.length() == 0){
+            return null;
+        }
+        return js.getJSONObject(0);
     }
 
 
