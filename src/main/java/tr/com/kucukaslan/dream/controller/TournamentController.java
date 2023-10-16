@@ -79,31 +79,42 @@ public class TournamentController {
             // It might be sensible to discard that exception make this operation `idempotent`
             return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament");
         }
-        while (true) {
-            long count = 0l;
-            long sleep = 50l;
-            try {
-                // TODO What a shame LOL
+        // while (true) {
+        //     long count = 0l;
+        //     long sleep = 50l;
+        //     try {
+        //         // TODO What a shame LOL
 
-                if (count * sleep % 10000L == 0)
-                    log.debug("{}:{} waiting group {}", user_id, country, group);
-                Thread.sleep(sleep);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            if (group.size() == 5) {
-                break;
-            }
-        }
-        log.debug("{} joined country {} to group: {} ",user_id, country, group);
-        // try {
-        //     group.wait();
-        // } catch (InterruptedException e) {
-        //     // TODO Auto-generated catch block
-        //     e.printStackTrace();
+        //         if (count * sleep % 10000L == 0)
+        //             log.debug("{}:{} waiting group {}", user_id, country, group);
+        //         Thread.sleep(sleep);
+        //     } catch (InterruptedException e) {
+        //         // TODO Auto-generated catch block
+        //         e.printStackTrace();
+        //     }
+        //     if (group.size() == 5) {
+        //         break;
+        //     }
         // }
-        log.debug("{}: woke up {}", user_id, String.valueOf(group));
+        synchronized (group) {
+            log.debug("{} joined country {} to group: {} ", user_id, country, group);
+            if (group.size() < 5) {
+                try {
+                    log.debug("{}:{} waiting group {}", user_id, country, group);
+                    group.wait();
+                    log.debug("{}: woke up {}", user_id, String.valueOf(group));
+                    // group.wait();
+                } catch (InterruptedException e) {
+                    // TODO back up with thread sleep?
+                    e.printStackTrace();
+                }
+            } else {
+                log.debug("{}: group is full {}", user_id, String.valueOf(group));
+                log.debug("{}: wake others up", user_id);
+                group.notifyAll();
+            }
+            log.debug("{}: woke up {}", user_id, String.valueOf(group));
+        }
         JSONObject relation = null;
         try {
             relation = TournamentManager.getInstance().join(user_id, group.getGroupJson().getLong("tournament_group_id"));

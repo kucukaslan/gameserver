@@ -42,7 +42,7 @@ so that the next tournament can start with empty queues.
 - [x] The user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
 - [x] should add checks for whether user is joined to tournament
 - [x] implement claim award
-- [ ] fix the sleep thing
+- [x] fix the sleep thing
 - [ ] add tests 
 
 ## Questions

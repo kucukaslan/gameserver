@@ -50,6 +50,9 @@ At least I could use this structure in tests to simulate multiple users.
 - I've added some consistency checks to the endpoints, such as checking if the user exists before retrieving leaderboard or updating level. Checking if the user has enough coins to join a tournament [^monolith].
 - I've completed the prototype i.e. all endpoints are implemented though there are some TODOs.
 
+## 11.16
+Cover Letter: "I have a good understanding of concurrency/synchronization and Object-oriented design"
+Reality: forgets to obtain lock before waiting on an object. :D
 
 [^timeunits]: [TimeUnits conversion mistake](extras/timeunits.png)
 
