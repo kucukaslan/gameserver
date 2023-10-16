@@ -1,6 +1,7 @@
 package tr.com.kucukaslan.dream.util;
 
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +55,9 @@ public class TournamentManager {
         Long coin = user.getLong("coin");
         Calendar now = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         if( !isTournamentHour(now)) {
-            throw new MyException("It is not tournament hour cannot join to tournament" + now);
+            SimpleDateFormat f = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" );
+            f.setTimeZone(TimeZone.getTimeZone("UTC"));
+            throw new MyException("It is not tournament hour cannot join to tournament " +f.format(now.getTime()));
         }
         JSONObject tournament = getTodaysTournament();
         long tournament_id = tournament.getLong("tournament_id");

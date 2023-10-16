@@ -79,42 +79,26 @@ public class TournamentController {
             // It might be sensible to discard that exception make this operation `idempotent`
             return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament");
         }
-        // while (true) {
-        //     long count = 0l;
-        //     long sleep = 50l;
-        //     try {
-        //         // TODO What a shame LOL
 
-        //         if (count * sleep % 10000L == 0)
-        //             log.debug("{}:{} waiting group {}", user_id, country, group);
-        //         Thread.sleep(sleep);
-        //     } catch (InterruptedException e) {
-        //         // TODO Auto-generated catch block
-        //         e.printStackTrace();
-        //     }
-        //     if (group.size() == 5) {
-        //         break;
-        //     }
-        // }
         synchronized (group) {
             log.debug("{} joined country {} to group: {} ", user_id, country, group);
-            if (group.size() < 5) {
+            if (group.size() >= 5) {
+                log.debug("{}: group is full {}", user_id, String.valueOf(group));
+                log.debug("{}: wake others up", user_id);
+                group.notifyAll();
+            }
+            while (group.size() < 5) {
                 try {
                     log.debug("{}:{} waiting group {}", user_id, country, group);
                     group.wait();
                     log.debug("{}: woke up {}", user_id, String.valueOf(group));
                     // group.wait();
                 } catch (InterruptedException e) {
-                    // TODO back up with thread sleep?
-                    e.printStackTrace();
+                    MyUtil.getResponseEntity(e, "Exception while  waiting for group " + String.valueOf(group));
                 }
-            } else {
-                log.debug("{}: group is full {}", user_id, String.valueOf(group));
-                log.debug("{}: wake others up", user_id);
-                group.notifyAll();
             }
-            log.debug("{}: woke up {}", user_id, String.valueOf(group));
         }
+
         JSONObject relation = null;
         try {
             relation = TournamentManager.getInstance().join(user_id, group.getGroupJson().getLong("tournament_group_id"));
@@ -388,59 +372,58 @@ public class TournamentController {
     public ResponseEntity<String> test() {
         String[] countries = new String[] { "TR", "US", "DE", "FR", "GB" };
         log.info("request is received");
-        ExecutorService executorService = Executors.newFixedThreadPool(5);
-        for (Long i = 0L; i < 10000; i++) {
-            Long id = i.longValue() * 100000 + Math.round(Math.random() * 100000d);
+        ExecutorService executorService = Executors.newFixedThreadPool(10000);
+        for (Long i = 0L; i < 100000; i++) {
+            Long user_id = i.longValue() * 100000 + Math.round(Math.random() * 100000d);
             Long j = i.longValue() % 5;
+            
             executorService.execute(() -> {
-                log.debug("{}: joining country: {} ", id, countries[j.intValue()]);
+                log.debug("{}: joining country: {} ", user_id, countries[j.intValue()]);
                 TournamentGroup group;
                 try {
                     group = TournamentManager.getInstance().join(countries[j.intValue()],
-                            new JSONObject().put("user_id", id).put("coin", 1000L));
+                            new JSONObject().put("user_id", user_id).put("coin", 1000L));
                 } catch (SQLException | JSONException | MyException e) {
                     log.error("error while joining country: {} ", countries[j.intValue()], e);
                     return ;
                 }
-                while (true) {
-                    long count = 0l;
-                    long sleep = 10l;
-                    try {
-                        // TODO What a shame LOL
-
-                        if (count * sleep % 10000L == 0)
-                        log.debug("{}:{} waiting group {}", id,  countries[j.intValue()], group);
-                        Thread.sleep(sleep);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+                String country = countries[j.intValue()];
+                synchronized (group) {
+                    log.debug("{} joined country {} to group: {} ", user_id, country, group);
+                    if (group.size() >= 5) {
+                        log.debug("{}: group is full {}", user_id, String.valueOf(group));
+                        log.debug("{}: wake others up", user_id);
+                        group.notifyAll();
                     }
-                    if(group.size() == 5) {
-                        break;
+                    while (group.size() < 5) {
+                        try {
+                            log.debug("{}:{} waiting group {}", user_id, country, group);
+                            group.wait();
+                            log.debug("{}: woke up {}", user_id, String.valueOf(group));
+                            // group.wait();
+                        } catch (InterruptedException e) {
+                            MyUtil.getResponseEntity(e, "Exception while  waiting for group " + String.valueOf(group));
+                        }
                     }
                 }
-                log.debug("{} joined country {} to group: {} ", j.intValue(), countries[j.intValue()], group);
-                // try {
-                //     group.wait();
-                // } catch (InterruptedException e) {
-                //     // TODO Auto-generated catch block
-                //     e.printStackTrace();
-                // }
-                log.debug("{}: woke up {}", j, String.valueOf(group));
+
                 JSONObject relation = null;
                 try {
-                    relation = TournamentManager.getInstance().join(id, group.getGroupJson().getLong("tournament_group_id"));
+                    relation = TournamentManager.getInstance().join(user_id,
+                            group.getGroupJson().getLong("tournament_group_id"));
                 } catch (SQLException | JSONException e) {
                     log.error("error while joining country: {} ", countries[j.intValue()], e);    
                 }
-                log.debug("{}: joined to tournament group relation: {} ", id, relation);
-
+                log.debug("{}: joined to tournament group relation: {} ", user_id, relation);
             });
+            if(i % 1000 == 0) {
+                log.error("{} requests are issued", i);
+            }
         }
 
         try {
             executorService.shutdown();
-            executorService.awaitTermination(30l, TimeUnit.SECONDS);
+            executorService.awaitTermination(30, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

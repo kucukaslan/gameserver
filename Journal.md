@@ -1,6 +1,6 @@
 # Journal
-Time I spent on this project might seem too much, but I've intertwined it with
-experimenting with Spring and Spring Data JPA and adding some functionalities 
+Overall time I spent on this project might seem too much, but I've intertwined it with
+experimenting with Spring & Spring Data JPA & JDBC and adding some functionalities 
 that are not normally required for this project. I used the project as an excuse
 to learn more about some topics (e.g. logging, redis streams, redis queues (lists) )
 which may not even be used in the project.
@@ -49,7 +49,7 @@ At least I could use this structure in tests to simulate multiple users.
 2 hours
 - I've added some consistency checks to the endpoints, such as checking if the user exists before retrieving leaderboard or updating level. Checking if the user has enough coins to join a tournament [^monolith].
 - I've completed the prototype i.e. all endpoints are implemented though there are some TODOs.
-
+- I've made the mistake of using my humble laptop to test the performance of the program. I've issued 100.000 requests in a for loop and submitted a runnable of "tournament join logic" to executor service having 100 threads. It took about 15 seconds to issue all the requests and after over 10 min It started to give errors stating it is not tournament hour anymore LoL. In retrospect it would make more sense to initiate the requests from an external program so that I delegate the thread creation etc. to spring as in the real environment. 
 ## 11.16
 Cover Letter: "I have a good understanding of concurrency/synchronization and Object-oriented design"
 Reality: forgets to obtain lock before waiting on an object. :D
@@ -60,4 +60,5 @@ Reality: forgets to obtain lock before waiting on an object. :D
 
 [^monolith]: there is an important assumption that there is a single server that run's this program. Based on this assumption I, 1st, deduct the entrance fee, then add the user to the tournament. If there were multiple servers, then I should have used transaction etc. to ensure atomicity. (I did not handle the case where coins are deducted but server crashed before registering user the tournament). \
 Ideally one would keep logs (possibly on a db table) of coin spends/earning at least for the sake of reference.
+(I suppose redis streams are used for something like this)
 
