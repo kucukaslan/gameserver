@@ -48,6 +48,7 @@ At least I could use this structure in tests to simulate multiple users.
 ## 11.15
 2 hours
 - I've added some consistency checks to the endpoints, such as checking if the user exists before retrieving leaderboard or updating level. Checking if the user has enough coins to join a tournament [^monolith].
+- I've completed the prototype i.e. all endpoints are implemented though there are some TODOs.
 
 
 [^timeunits]: [TimeUnits conversion mistake](extras/timeunits.png)

@@ -77,11 +77,12 @@ public class MyUtil {
         log.error("Error {} due to {}", args, ex.getMessage());
         log.debug("{}", ex);
         log.trace("{}", String.valueOf(ex.getStackTrace()));
+        // join args with comma and space to create a message
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
                     .body(
                             new JSONObject()
                                     .put("traceId", MDC.get(MyUtil.TRACE_ID))
-                                    .put("message", String.valueOf(args))
+                                    .put("message", String.join(", ", args))
                                     .put("exception", ex.getMessage()).toString());
     }
 }

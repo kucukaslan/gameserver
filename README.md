@@ -15,8 +15,12 @@ Though, I prefer setting this project to TRACE, and rest (`root`) to INFO.
 ## Build and Run
 First the database must be created.
 I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file.
+Create a database and use that sql file to create the tables.
 
+in [./config.properties](./config.properties) file, set the database credentials.
+there are my dev. environment credentials, I will commit them for convenience.
 
+for the moment I'm not using redis, so you can ignore the redis properties. (I might use it later)
 
 ```bash
 # mvn clean package
@@ -32,12 +36,14 @@ TournamentCache has a built-in cache, but it is not persistent. Maybe I can use 
 ```java
     private Map<String, JSONObject> tournamentCacheByCode;
 ```
-- [ ] make sure the tournament joint request queues are emptied after the tournament ends.
+- [x] make sure the tournament joint request queues are emptied after the tournament ends.
 so that the next tournament can start with empty queues.
-- [ ] User can join tournaments only if it has enough coins to join.
-- [ ] The user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
-- [ ] should add checks for whether user is joined to tournament
-- [ ] implement claim award
+- [x] User can join tournaments only if it has enough coins to join.
+- [x] The user can earn coins only for completing level or winning (ranked 1st or 2nd) tournament.
+- [x] should add checks for whether user is joined to tournament
+- [x] implement claim award
+- [ ] fix the sleep thing
+- [ ] add tests 
 
 ## Questions
 - [ ] endpoint access control (should require tokens?)

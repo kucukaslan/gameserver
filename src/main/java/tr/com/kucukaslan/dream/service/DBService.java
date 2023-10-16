@@ -61,10 +61,12 @@ public class DBService {
     
     private static final String TOURNAMENT_GROUP_BY_USER_AND_TOURNAMENT = "SELECT u.user_id, u.countryISO2, u.name, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_id = ? and u.user_id = ? order by utg.score DESC";
 
+    private static final String USER_LAST_TOURNAMENT = "SELECT u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where u.user_id = ? AND t.end_time <= UTC_TIMESTAMP(6) ORDER BY t.end_time DESC LIMIT ?";
+
+    private static final String USER_CLAIM_REWARDS = "UPDATE `user_tournament_group` SET `rewardsClaimed` = '1' WHERE `user_tournament_group`.`utg_id` = ?; UPDATE `user` SET `coin` = `coin` + ? WHERE `user`.`user_id` = ?;";
     private static final long LEVEL_AWARD = 25;
-    private static final long[] TOURNAMENT_AWARDS = { 10000, 5000 };
+    private static final long[] TOURNAMENT_AWARDS = { 10000, 5000, 0, 0, 0 };
     public static final long TOURNAMENT_ENTRANCE_FEE = 1000L;
-    private volatile JSONObject tournament = null;
 
     private static class SingletonHolder {
         static DBService instance = new DBService();
@@ -139,7 +141,7 @@ public class DBService {
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
         JSONArray js = resultSetToJSON(rs);
-        if(js!= null && js.length() == 0){
+        if(js == null || js.length() == 0){
             throw new MyException("User with user_id: "+user_id+" does not exist");
         }
        return js.getJSONObject(0);
@@ -305,7 +307,7 @@ public class DBService {
             }
         } catch (SQLException e) {
             log.error("Error while converting ResultSet to JSON", e.getMessage());
-            log.debug("stack trace {}", e.getStackTrace());
+            log.debug("stack trace {}", String.valueOf(e.getStackTrace()));
         }
         return jsonArray;
     }
@@ -439,4 +441,44 @@ public class DBService {
         return resultSetToJSON(rs);
     }
 
+    /**
+     * return the information about the last completed tournament
+     * u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
+     *  returns null if there is no completed tournament
+     */
+    public JSONObject getLastCompletedTournament(long user_id) throws SQLException, JSONException {
+        return getLastCompletedTournaments(user_id, 1).optJSONObject(0);
+    }
+
+    
+    /**
+     * return the information about the last maxCount completed tournaments
+     * u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
+     *  @return JSONArray of tournaments, returns empty array if there is no completed tournament
+     */
+    public JSONArray getLastCompletedTournaments(long user_id, long maxCount ) throws SQLException, JSONException {
+        PreparedStatement stmt = con.prepareStatement(USER_LAST_TOURNAMENT);
+        stmt.setLong(1, user_id);
+        stmt.setLong(2, maxCount);
+        log.trace("retrieving last tournament SQL: {}", stmt.toString());
+        ResultSet rs = stmt.executeQuery();
+        log.trace("SQL executed, result set: {}", rs);
+
+        return resultSetToJSON(rs);
+    }
+
+    public JSONObject claimRewards(long user_id, long user_tournament_group_id, Long rank) throws SQLException, MyException{
+        PreparedStatement stmt = con.prepareStatement(USER_CLAIM_REWARDS);
+        stmt.setLong(1, user_tournament_group_id);
+        stmt.setLong(2, TOURNAMENT_AWARDS[rank.intValue()-1]);
+        stmt.setLong(3, user_id);
+
+        log.trace("claimRewards SQL: {}", stmt.toString());
+        if (stmt.executeUpdate() != 1) {
+            log.error("Error while claiming rewards for user {}", user_id);
+        }
+
+        return selectUser(user_id);
+
+    }
 }

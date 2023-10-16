@@ -12,7 +12,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.MDC;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -48,7 +47,7 @@ public class TournamentController {
     public ResponseEntity<String> enterTournamentRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
         log.debug("EnterTournamentRequest method is called");
-        // TODO check if already joined
+        // TODO check if previous rewards claimed
         JSONObject user = new JSONObject();
         if (MyUtil.isJSONFormatted(body)) {
             user = new JSONObject(body);
@@ -82,7 +81,7 @@ public class TournamentController {
         }
         while (true) {
             long count = 0l;
-            long sleep = 500l;
+            long sleep = 50l;
             try {
                 // TODO What a shame LOL
 
@@ -113,8 +112,6 @@ public class TournamentController {
         }
         log.debug("{}: joined to tournament group relation: {} ", user_id, relation);
 
-        // todo return leaderboard
-
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                 .body(relation.toString());
     }
@@ -124,14 +121,103 @@ public class TournamentController {
     */
     @RequestMapping(value = "/ClaimRewardRequest", method = RequestMethod.POST)
     public ResponseEntity<String> claimRewardRequest(@RequestBody String body, HttpServletRequest httpRequest) {
-        MyUtil.setTraceId(httpRequest);
         log.debug("ClaimRewardRequest method is called");
-        //TODO: implement
-        return ResponseEntity.status(HttpStatus.I_AM_A_TEAPOT).contentType(MediaType.APPLICATION_JSON)
-                .body(new JSONObject().put("message", "reward is not claimed LoL").toString());
+        JSONObject input;
+        if (MyUtil.isJSONFormatted(body)) {
+            input = new JSONObject(body);
+            MyUtil.setTraceId(input);
+            if (!input.has("user_id")) {
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "`user_id` field is required").toString());
+            }
+        } else {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "body is not a valid json").toString());
+        }
+
+        Long user_id = input.getLong("user_id");
+
+        // Long tournament_id = input.optLong("tournament_id");
+        // get last tournament
+        JSONObject tournament;
+        try {
+            // u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
+            tournament = DBService.getInstance().getLastCompletedTournament(user_id);
+        } catch (SQLException | JSONException e) {
+            return MyUtil.getResponseEntity(e,
+                    "Exception while retrieving last completed tournament of user " + user_id);
+        }
+        if (tournament == null) {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "user has not completed any tournament").toString());
+        }
+        if (tournament.getBoolean("rewardsClaimed")) {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message",
+                                    "user has already claimed the reward for last tournament "
+                                            + tournament.getLong("tournament_id") + " which ended at "
+                                            + tournament.get("end_time"))
+                            .toString());
+        }
+
+        // it is time to claim the reward!
+        // first get the rank of the user
+        JSONArray group;
+        long tournament_group_id = tournament.getLong("tournament_group_id");
+        try {
+            group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+        } catch (SQLException | JSONException e) {
+            return MyUtil.getResponseEntity(e,
+                    "Exception while retrieving tournament group leaderboard " + tournament_group_id);
+        }
+        long rank;
+        long score;
+        if (group == null || group.length() < 1) {
+            log.error("tournament group {} is empty", tournament_group_id);
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "tournament group " + tournament_group_id + " is empty").toString());
+        }
+
+        rank = 1;
+        score = group.getJSONObject(0).getLong("score");
+        long newScore = 0;
+        for (int i = 1; i < group.length(); i++) {
+            newScore = group.getJSONObject(i).getLong("score");
+            if (newScore < score) {
+                rank = i + 1;
+                score = newScore;
+            }
+            if (group.getJSONObject(i).getLong("user_id") == user_id) {
+                break;
+            }
+        }
+
+        log.debug("rank of {} in tournament {} in group {} is {} with score {}", user_id,
+                tournament.getLong("tournament_id"), tournament_group_id, rank, score);
+
+        // Now it is time to claim the reward
+        JSONObject resp;
+        try {
+            resp = DBService.getInstance().claimRewards(user_id, tournament.getLong("utg_id"), rank);
+        } catch (SQLException | MyException | JSONException e) {
+            return MyUtil.getResponseEntity(e,
+                    "Exception while claiming reward for user " + user_id + " in tournament "
+                            + tournament.getLong("tournament_id"));
+        }
+
+        // fazla bilgi göz çıkarmaz
+        resp.put("rank", rank)
+                .put("score", score);
+
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                .body(resp.toString());
     }
 
-    // TODO would it be  nice to make it a get request? Is it public?
     /**
      * GetGroupRankRequest: This request retrieves the player's rank for any tournament.
     */
@@ -170,17 +256,31 @@ public class TournamentController {
             }
             tournament_group_id = tournamentGroup.getLong("tournament_group_id");
             
+            long rank;
+            long score;
             JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
-            int rank = 1;
-            long score = 0;
-            for(int i = 0; i < group.length(); i++){
-                if(group.getJSONObject(i).getLong("user_id") == user_id){
-                    rank = i+1;
-                    score = group.getJSONObject(i).optLong("score");
+            if (group == null || group.length() < 1) {
+                log.error("tournament group {} is empty", tournament_group_id);
+                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", "tournament group " + tournament_group_id + " is empty").toString());
+            }
+
+            rank = 1;
+            score = group.getJSONObject(0).getLong("score");
+            long newScore = 0;
+            for (int i = 1; i < group.length(); i++) {
+                newScore = group.getJSONObject(i).getLong("score");
+                if (newScore < score) {
+                    rank = i + 1;
+                    score = newScore;
+                }
+                if (group.getJSONObject(i).getLong("user_id") == user_id) {
                     break;
                 }
             }
-            log.debug("rank of {} in tournament {} in group {} is {} with score", user_id, tournament_id, tournament_group_id, rank, score);
+
+            log.debug("rank of {} in tournament {} in group {} is {} with score {}", user_id, tournament_id, tournament_group_id, rank, score);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                     .body(new JSONObject().put("rank", rank).put("user_id", "user_id").put("score", score).put("tournament_id", tournament_id).toString());
         } catch (SQLException | JSONException | MyException e) {

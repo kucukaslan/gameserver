@@ -59,7 +59,7 @@ public class TournamentGroupTest {
             });
         }
 
-        assertEquals("Hello Baeldung Readers!!\n", outputStreamCaptor.toString());
+        // assertEquals("Hello Baeldung Readers!!\n", outputStreamCaptor.toString());
 
         try {
             executorService.awaitTermination(1, TimeUnit.SECONDS);

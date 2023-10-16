@@ -1,14 +1,11 @@
 package tr.com.kucukaslan.dream;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import ch.qos.logback.classic.Logger;
-import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
 import tr.com.kucukaslan.dream.service.DBService;
 
