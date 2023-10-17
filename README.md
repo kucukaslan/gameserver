@@ -1,17 +1,5 @@
 # dream
 
-## Notes:
-- I've used MySQL as a database (to be pedantic I used the MariaDB that comes with XAMPP)
-- Database configuration is in [./config.properties](./config.properties) file, 
-I will commit it for convenience with the test db credentials.
-
-
-
-- to alter log level, change the relevant values [src/main/resources/application.properties](src/main/resources/application.properties)
-My suggestion is not to set it to DEBUG or TRACE if the performance is important.
-Though, I prefer setting this project to TRACE, and rest (`root`) to INFO.
-
-
 ## Build and Run
 First the database must be created.
 I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file.
@@ -30,6 +18,111 @@ Test:
 ```bash
 mvn test
 ```
+
+
+## Explanations & Discussions
+### A few Notes:
+- I've used MySQL as a database (to be pedantic I used the MariaDB that comes with XAMPP)
+- Database configuration is in [./config.properties](./config.properties) file, 
+I will commit it for convenience with the test db credentials.
+- I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file. 
+- I've also exported the database (structure and data) to [./extras/dream_with_data.sql](./extras/dream_with_data.sql) file.
+however some of those data are manually modified, so they might be in 
+invalid (unattainable) state. e.g. some of the users referenced by tournament groups
+are deleted etc. 
+- The program has an extensive logging frequency. You can alter the log level, by changing the relevant values [src/main/resources/application.properties](src/main/resources/application.properties)
+My suggestion is not to set it to DEBUG or TRACE if the performance is important.
+Though, I prefer setting this project to TRACE, and rest (`root`) to INFO during development.
+
+### The Program
+> [!NOTE]  
+> there are some comments in the code and the [Journal.md](Journal.md) file that might be relavant
+
+#### General
+- The program is a Spring Boot application. 
+- There are UserController and TournamentController classes that handle the requests. 
+- There is also a TournamentManager class that is responsible for managing the tournaments. Request handlers of TournamentController usually delegate the request to TournamentManager.
+- There is a MyUtil class that contains some utility methods such as setting/retrieving `traceId`s for the requests for the logging purposes.
+- There is DBService class that is responsible for database operations. I used JDBC with hand-written SQL queries. I thought of using JPA, but I don't have much experience with it, especially I'm not sure how can (or can) I use it to write relatively complex queries that require multiple joins etc. I was also short on time to learn it, so let it go after some time. \
+It might be irrelevant, especially for this project, but I'm sceptical about the performance of JPA especially for the bulk operations. Though, I don't want to make any claims without actually testing and/or understanding it.
+- Generally I've used JSONObjects for flexibility, especially the use case is
+limited to get/set operations. But it might have been to use POJOs for some use cases. 
+
+#### Time and Timezones
+- I've consistently used UTC time for every time related operation.
+- I've used `UTC_TIMESTAMP` in SQL, I connected to DB with `connectionTimeZone=UTC`,
+I called `Calendar.getInstance(TimeZone.getTimeZone("UTC"))` in Java code.
+HOWEVER, you know timezones are [timezones](https://www.zainrizvi.io/blog/falsehoods-programmers-believe-about-time-zones/) 
+there is always, literally always, some mistakes. I suspect that during summer time zone
+changes the program might incorrectly clear the tournament group queues depending
+ on the server's local time etc. but forgive me for omitting that :)
+
+- I do evaluate the tournament requests based on the server's time.
+  It's bad (luck?) if a user sends a request to join tournament at 19.59.59.999 and the server
+    receives it at 20.00.00.001 and rejects it. But I guess the user probably won't
+    score much in that 1 second anyway :)
+A potential problem might be in claimrewards endpoint though. If a user's updatelevel
+request is received at 19.59.59.999 and the server normally processes it. But before
+the server processes the claimreward request, another user from same group may send
+a request to claimreward. In that case the reward might not be given accurately.
+We could add a buffer time for all procceesing to complete before announcing the results. But I am not sure what is the best way to handle this. We may at someplace
+use counters (REDIS counters `INCR` if there are multiple servers) to keep track of
+the number of requests being processed so that claimreward endpoint can wait for
+it to be zeroeth. But forgive me for not implementing it too :)
+
+
+#### Endpoints
+There are 7 endpoints. Besides the "Enter Tournament" endpoint all of them are straightforward implementations of the requirements (Each request is processed independently).
+```
+1. check request if it contains valid data in valid format
+2. check if the prerequisite conditions are met (e.g. does the user have enough coins to join a tournament?)
+3. if the request is valid, then process it
+4. return the result (both success and failure)
+```
+
+The "Enter Tournament" endpoint is a bit more complicated.
+In addition to usual checks we need to wait for other players to join the tournament.
+So it depends on other enter tournament requests. The callee will wait until the tournament group is formed. That is until other players join the tournament.
+
+To explain it further, the program wants to make online/real-time player matching.
+So it waits for sufficient number of players to request to join the tournament. 
+Then match them and start tournament for their group.
+
+It was requested that each tournament group should have 1 player from each country.
+The intuitive way to do this is to have queues for each country that holds Players
+and when an empty queue is filled with a player (check if all queues are non-empty)
+then start the tournament by dequeueing the players from the queues. 
+This is a valid and reasoaable approach to do so. However, given that I need to 
+include group details and ranking in the request, I made a small change to simplify
+communication. Instead of adding players to queues, I added the group (candidates) to the queue.
+It may sound a bit counter-intuitive and weird at first, but it is actually a reasonable
+approach (at least reasonable to some people -me). 
+
+I hope the following description will make it clear.
+
+At the very first request to enter tournament coming from user of country `X`,
+the program will create a TournamentGroup (JSON)object and put that object to the 
+queues of **other** countries. So when a user from country `Y` requests to enter tournament,
+it will find the group object in the queue of `Y` and add itself to the group.
+If for a user from a country (let say `X`) there is no group object in the queue of `X`,
+then it will create a new group object and put it to the queues of other countries.
+
+
+So the queues actually hold how many users from other countries is needed to form a group.
+Unlike the other approach that holds the users from that country waiting to play. 
+To give an example, in my approach if there are 2 objects in the queue of `X` then it means
+that there are 2 groups waiting for a player from `X` to join. In the other approach it would mean
+that there are 2 players from `X` waiting to play. The difference is subtle but important.
+
+when a user dequeues a group object and detects that it is full then a tournamentgroup is formed
+for that group, the (threads of) other users of that group are notified so that they can both 
+insert themselves to the DB and return the response to the requests. (I have a separate DB table that stores the tournament group and user relation along with metadata such as score and whether user has claimed the award etc. Given that group size is fixed to 5 we could've added 10 or so columns to the tournament group table, but you may never know how fixed `fixed size` is :) )
+
+I've used `ConcurrentLinkedQueue`s. I also used syncronized block/methods/objects when needed. Obviously for, aforementioned, notification of other threads
+I used the Java's built-in `wait()` and `notify()` methods. 
+
+
+
 ## TODO
 - [ ] using local cache instead of redis? (for now I'm not using redis)
 TournamentCache has a built-in cache, but it is not persistent. Maybe I can use redis for that.
@@ -44,17 +137,10 @@ so that the next tournament can start with empty queues.
 - [x] implement claim award
 - [x] fix the sleep thing
 - [ ] add tests 
+- [x] check: server will convert its time to UTC and process tournament events accordingly
 
 ## Questions
 - [ ] endpoint access control (should require tokens?)
-- [ ] verify: server will convert its time to UTC and process tournament events accordingly
-- [ ] should the time of the event be the time received by the server or the time the event was generated by the client? \
-    this is important when there is significant time difference between the server and the client. e.g. player finished a level at 19.59.59.999 but the server received the event at 20.00.00.001 \
-    Furthermore if there is ability to play offline then user may play in midday and then connect to the server in the evening to see that his progress was not counted for tournament. 
-
-- [ ] It seems sending request to enter the tournament is (blocking) action for the client. i.e. server will have it wait until the tournament  group is formed.  
-- [ ] similarly should server immediately anounce the results or wait for some buffer time to complete tasks being processed?
-- [ ] GetGroupLeaderboardRequest: can I assume that the client will always send the group code? or should I add a check for that to retrieve by user?
 
 ## Journal
 There is also [Journal.md](Journal.md) file that I kept while working on this project. 

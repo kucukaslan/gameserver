@@ -64,9 +64,12 @@ public class DBService {
     private static final String USER_LAST_TOURNAMENT = "SELECT u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where u.user_id = ? AND t.end_time <= UTC_TIMESTAMP(6) ORDER BY t.end_time DESC LIMIT ?";
 
     private static final String USER_CLAIM_REWARDS = "UPDATE `user_tournament_group` SET `rewardsClaimed` = '1' WHERE `user_tournament_group`.`utg_id` = ?; UPDATE `user` SET `coin` = `coin` + ? WHERE `user`.`user_id` = ?;";
+    
     private static final long LEVEL_AWARD = 25;
     private static final long[] TOURNAMENT_AWARDS = { 10000, 5000, 0, 0, 0 };
+    
     public static final long TOURNAMENT_ENTRANCE_FEE = 1000L;
+    public static final long TOURNAMENT_MIN_LEVEL = 20L;
 
     private static class SingletonHolder {
         static DBService instance = new DBService();

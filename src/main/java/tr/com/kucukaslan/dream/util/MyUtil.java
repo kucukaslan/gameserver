@@ -76,7 +76,7 @@ public class MyUtil {
     public static ResponseEntity<String> getResponseEntity(Exception ex, String... args) {
         log.error("Error {} due to {}", args, ex.getMessage());
         log.debug("{}", ex);
-        log.trace("{}", String.valueOf(ex.getStackTrace()));
+        log.trace("Stack Trace: {}", String.valueOf(ex.getStackTrace()));
         // join args with comma and space to create a message
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
                     .body(

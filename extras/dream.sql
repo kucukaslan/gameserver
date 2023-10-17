@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 15, 2023 at 09:55 PM
+-- Generation Time: Oct 17, 2023 at 09:00 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -18,8 +18,10 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `dream`
+-- Database: `dreamapiimport`
 --
+CREATE DATABASE IF NOT EXISTS `dreamapiimport` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `dreamapiimport`;
 
 -- --------------------------------------------------------
 
@@ -27,12 +29,13 @@ SET time_zone = "+00:00";
 -- Table structure for table `tournament`
 --
 
+DROP TABLE IF EXISTS `tournament`;
 CREATE TABLE `tournament` (
   `tournament_id` bigint(20) NOT NULL,
   `code` mediumtext NOT NULL COMMENT 'Might be YYYYMMDD',
-  `start_time` timestamp NOT NULL DEFAULT current_timestamp(),
-  `end_time` timestamp NOT NULL DEFAULT current_timestamp(),
-  `date_created` datetime NOT NULL DEFAULT current_timestamp(),
+  `start_time` timestamp NOT NULL DEFAULT utc_timestamp(6),
+  `end_time` timestamp NOT NULL DEFAULT utc_timestamp(6),
+  `date_created` datetime NOT NULL DEFAULT utc_timestamp(6),
   `image` mediumtext DEFAULT NULL,
   `spare` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `version` int(11) DEFAULT 0
@@ -44,13 +47,14 @@ CREATE TABLE `tournament` (
 -- Table structure for table `tournament_group`
 --
 
+DROP TABLE IF EXISTS `tournament_group`;
 CREATE TABLE `tournament_group` (
   `tournament_group_id` bigint(20) UNSIGNED NOT NULL,
   `tournament_id` bigint(20) NOT NULL,
   `code` mediumtext NOT NULL COMMENT 'tournament code - random numbers',
   `version` int(11) DEFAULT NULL,
   `spare` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `date_created` datetime NOT NULL DEFAULT current_timestamp()
+  `date_created` datetime NOT NULL DEFAULT utc_timestamp(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -59,6 +63,7 @@ CREATE TABLE `tournament_group` (
 -- Table structure for table `user`
 --
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `user_id` bigint(20) UNSIGNED NOT NULL,
   `countryISO2` varchar(2) NOT NULL,
@@ -67,8 +72,8 @@ CREATE TABLE `user` (
   `spare` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`spare`)),
   `image` varchar(8192) DEFAULT NULL COMMENT 'TODO URL or local path of image',
   `name` varchar(1024) DEFAULT NULL,
-  `date_created` datetime NOT NULL DEFAULT current_timestamp(),
-  `date_modified` datetime NOT NULL DEFAULT current_timestamp()
+  `date_created` datetime NOT NULL DEFAULT utc_timestamp(6),
+  `date_modified` datetime NOT NULL DEFAULT utc_timestamp(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -77,6 +82,7 @@ CREATE TABLE `user` (
 -- Table structure for table `user_tournament_group`
 --
 
+DROP TABLE IF EXISTS `user_tournament_group`;
 CREATE TABLE `user_tournament_group` (
   `utg_id` bigint(20) NOT NULL,
   `user_id` bigint(20) UNSIGNED NOT NULL,
@@ -84,9 +90,9 @@ CREATE TABLE `user_tournament_group` (
   `level_when_joined` int(11) DEFAULT NULL,
   `score` int(11) NOT NULL DEFAULT 0,
   `rewardsClaimed` tinyint(1) NOT NULL DEFAULT 0,
-  `date_created` datetime NOT NULL DEFAULT current_timestamp(),
+  `date_created` datetime NOT NULL DEFAULT utc_timestamp(6),
   `spare` int(11) DEFAULT NULL,
-  `date_modified` datetime NOT NULL DEFAULT current_timestamp()
+  `date_modified` datetime NOT NULL DEFAULT utc_timestamp(6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --

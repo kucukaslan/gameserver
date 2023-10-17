@@ -52,24 +52,36 @@ public class TournamentManager {
      */
     public synchronized TournamentGroup join(String countryISO2, JSONObject user) throws SQLException, JSONException, MyException {
         Long userId = user.getLong("user_id");
-        Long coin = user.getLong("coin");
+        Long coin ;
+        Long level;
         Calendar now = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         if( !isTournamentHour(now)) {
             SimpleDateFormat f = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss.SSSXXX" );
             f.setTimeZone(TimeZone.getTimeZone("UTC"));
             throw new MyException("It is not tournament hour cannot join to tournament " +f.format(now.getTime()));
         }
+        
+        // check if user has enough coin
+        coin = user.getLong("coin");
+        if (coin < DBService.TOURNAMENT_ENTRANCE_FEE) {
+            throw new MyException("Not enough coin to join tournament. Tournament entrance fee is "
+                    + DBService.TOURNAMENT_ENTRANCE_FEE + " but user only has " + coin);
+        }
+        
+        // check if user's level entitles him to join tournament
+        level = user.getLong("level");
+        if (level < DBService.TOURNAMENT_MIN_LEVEL) {
+            throw new MyException("User must be at least level " + DBService.TOURNAMENT_MIN_LEVEL
+                    + " to join tournament but user is only level " + level);
+        }
+
+
         JSONObject tournament = getTodaysTournament();
         long tournament_id = tournament.getLong("tournament_id");
         JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, userId);
         if(tug != null) {
             log.trace("user {} is already joined to tournament", userId);
             throw new MyException("User is already joined to tournament");
-        }
-
-        if (coin < DBService.TOURNAMENT_ENTRANCE_FEE) {
-            throw new MyException("Not enough coin to join tournament. Tournament entrance fee is "
-                    + DBService.TOURNAMENT_ENTRANCE_FEE + " but user only has " + coin);
         }
         TournamentGroup group = queueMap.get(countryISO2).poll();
         log.trace("{}: requested to join country: {} group {}", userId, countryISO2, group);

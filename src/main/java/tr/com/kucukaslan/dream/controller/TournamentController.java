@@ -47,7 +47,6 @@ public class TournamentController {
     public ResponseEntity<String> enterTournamentRequest(@RequestBody String body, HttpServletRequest httpRequest) {
         MyUtil.setTraceId(httpRequest);
         log.debug("EnterTournamentRequest method is called");
-        // TODO check if previous rewards claimed
         JSONObject user = new JSONObject();
         if (MyUtil.isJSONFormatted(body)) {
             user = new JSONObject(body);
@@ -70,16 +69,36 @@ public class TournamentController {
         long user_id = user.getLong("user_id");
         String country = user.getString("countryISO2");
 
+        // check if last tournament's rewards are claimed
+        JSONObject lastTournament;
+        try {
+            // u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
+            lastTournament = DBService.getInstance().getLastCompletedTournament(user_id);
+        } catch (SQLException | JSONException e) {
+            return MyUtil.getResponseEntity(e,
+                    "Exception while retrieving last completed tournament of user " + user_id);
+        }
+
+        if (lastTournament != null && !lastTournament.getBoolean("rewardsClaimed")) {
+            return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                            .put("message", "user has not claimed the reward for last tournament "
+                                    + lastTournament.getLong("tournament_id") + " which ended at "
+                                    + lastTournament.get("end_time"))
+                            .toString());
+        }
+
         log.debug("{}: joining country: {} ", user_id, country);
         TournamentGroup group;
         try {
             group = TournamentManager.getInstance().join(country, user);
         } catch (SQLException | JSONException | MyException e) {
-            // TODO a possible exception is that user is already joined to the tournament
+            // a possible exception is that user is already joined to the tournament
             // It might be sensible to discard that exception make this operation `idempotent`
             return MyUtil.getResponseEntity(e,  "Exception while joining " + user_id+ " from "+ country+" to tournament");
         }
 
+        // we, in principle, joined a group, but we need to wait for the group to be full
         synchronized (group) {
             log.debug("{} joined country {} to group: {} ", user_id, country, group);
             if (group.size() >= 5) {
@@ -178,6 +197,14 @@ public class TournamentController {
                             .put("message", "tournament group " + tournament_group_id + " is empty").toString());
         }
 
+        // although the group is already sorted it does not necessarily 
+        // mean that the users rank can be derived from the index of the user in the array
+        // because there might be users with the same score
+        // so we need to iterate over the array and find the rank of the user
+        // taking into account the users with the same score.
+        // e.g. if there are 2 users with score 10, the next user scored 7, and 
+        // the rest scored 5 then the ranks are "1, 1, 3, 4, 4" with respect to
+        // their place in this array 
         rank = 1;
         score = group.getJSONObject(0).getLong("score");
         long newScore = 0;
@@ -233,24 +260,30 @@ public class TournamentController {
                     .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
                             .put("message", "body is not a valid json").toString());
         }
+
         Long user_id =input.getLong("user_id");
         Long tournament_group_id = input.optLong("tournament_group_id");
         Long tournament_id = input.optLong("tournament_id");
         try {
-            if(!input.has("tournament_id")) {
-                log.debug("request does not contain tournament_id, retrieving tournament group of the user by user_id");
-                tournament_id= TournamentManager.getInstance().getTodaysTournament().getLong("tournament_id");
+            if (!input.has("tournament_group_id")) {
+                if (!input.has("tournament_id")) {
+                    log.debug(
+                            "request does not contain tournament_id, retrieving tournament group of the user by user_id");
+                    tournament_id = TournamentManager.getInstance().getTodaysTournament().getLong("tournament_id");
+                }
+
+                JSONObject tournamentGroup = DBService.getInstance().getTournamentGroupIdByTournamentUserId(
+                        tournament_id,
+                        user_id);
+                if (tournamentGroup == null) {
+                    return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
+                            .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                    .put("message", "user is not registered to tournament " + tournament_id)
+                                    .toString());
+                }
+                tournament_group_id = tournamentGroup.getLong("tournament_group_id");
             }
 
-            JSONObject tournamentGroup = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id,
-                    user_id);
-            if (tournamentGroup == null) {
-                return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
-                        .body(new JSONObject().put("traceId", MDC.get(MyUtil.TRACE_ID))
-                                .put("message", "user is not registered to tournament " + tournament_id).toString());
-            }
-            tournament_group_id = tournamentGroup.getLong("tournament_group_id");
-            
             long rank;
             long score;
             JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
