@@ -16,10 +16,10 @@ public class MyUtil {
     public static final String[] countries = { "TR", "US", "DE", "FR", "GB" };
 
     public static final String TRACE_ID = "traceId";
-    
+
     public static String setTraceId(HttpServletRequest httpRequest) {
         String traceId = MDC.get(TRACE_ID);
-        if(traceId == null) {
+        if (traceId == null) {
             traceId = httpRequest.getHeader(TRACE_ID);
         }
         return setOrGenerateTraceId(traceId);
@@ -27,15 +27,15 @@ public class MyUtil {
 
     public static String setTraceId(JSONObject jsonObject) {
         String traceId = MDC.get(TRACE_ID);
-        if(traceId == null) {
+        if (traceId == null) {
             traceId = jsonObject.optString(TRACE_ID);
         }
-        
+
         return setOrGenerateTraceId(traceId);
     }
 
     public static String setOrGenerateTraceId(String traceId) {
-        if(traceId == null || traceId.isBlank()) {
+        if (traceId == null || traceId.isBlank()) {
             traceId = UUID.randomUUID().toString();
         }
         MDC.put(TRACE_ID, traceId);
@@ -79,10 +79,10 @@ public class MyUtil {
         log.trace("Stack Trace: {}", String.valueOf(ex.getStackTrace()));
         // join args with comma and space to create a message
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
-                    .body(
-                            new JSONObject()
-                                    .put("traceId", MDC.get(MyUtil.TRACE_ID))
-                                    .put("message", String.join(", ", args))
-                                    .put("exception", ex.getMessage()).toString());
+                .body(
+                        new JSONObject()
+                                .put("traceId", MDC.get(MyUtil.TRACE_ID))
+                                .put("message", String.join(", ", args))
+                                .put("exception", ex.getMessage()).toString());
     }
 }

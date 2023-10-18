@@ -10,7 +10,6 @@ import tr.com.kucukaslan.dream.service.DBService;
 
 @SpringBootTest
 class DreamApplicationTests {
-	// TODO
 	// create a test database
 	// create a test tables
 	// create a test data

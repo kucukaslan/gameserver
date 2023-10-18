@@ -50,9 +50,13 @@ At least I could use this structure in tests to simulate multiple users.
 - I've added some consistency checks to the endpoints, such as checking if the user exists before retrieving leaderboard or updating level. Checking if the user has enough coins to join a tournament [^monolith].
 - I've completed the prototype i.e. all endpoints are implemented though there are some TODOs.
 - I've made the mistake of using my humble laptop to test the performance of the program. I've issued 100.000 requests in a for loop and submitted a runnable of "tournament join logic" to executor service having 100 threads. It took about 15 seconds to issue all the requests and after over 10 min It started to give errors stating it is not tournament hour anymore LoL. In retrospect it would make more sense to initiate the requests from an external program so that I delegate the thread creation etc. to spring as in the real environment. 
-## 11.16
+## 11.16 on
 Cover Letter: "I have a good understanding of concurrency/synchronization and Object-oriented design"
 Reality: forgets to obtain lock before waiting on an object. :D
+- revise/review the edge cases
+- prepare tests
+-
+
 
 [^timeunits]: [TimeUnits conversion mistake](extras/timeunits.png)
 

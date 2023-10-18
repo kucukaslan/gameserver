@@ -56,18 +56,18 @@ public class DBService {
 
     // SELECT * FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_group_id = 22 order by utg.score DESC;
     private static final String TOURNAMENT_GROUP_RANK = "SELECT u.user_id, u.name, u.countryISO2,  utg.score, utg.utg_id, t.tournament_id FROM `user` u join  user_tournament_group utg on  utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_group_id = ? order by utg.score DESC";
-    
+
     private static final String TOURNAMENT_COUNTRY_RANK = "SELECT u.countryISO2, sum(utg.score) as score FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where t.tournament_id = ? GROUP by u.countryISO2 ORDER by sum(utg.score) DESC";
-    
+
     private static final String TOURNAMENT_GROUP_BY_USER_AND_TOURNAMENT = "SELECT u.user_id, u.countryISO2, u.name, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where tg.tournament_id = ? and u.user_id = ? order by utg.score DESC";
 
     private static final String USER_LAST_TOURNAMENT = "SELECT u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time FROM `user` u join user_tournament_group utg on utg.user_id = u.user_id JOIN tournament_group tg on tg.tournament_group_id = utg.tournament_group_id join tournament t on t.tournament_id = tg.tournament_id where u.user_id = ? AND t.end_time <= UTC_TIMESTAMP(6) ORDER BY t.end_time DESC LIMIT ?";
 
     private static final String USER_CLAIM_REWARDS = "UPDATE `user_tournament_group` SET `rewardsClaimed` = '1' WHERE `user_tournament_group`.`utg_id` = ?; UPDATE `user` SET `coin` = `coin` + ? WHERE `user`.`user_id` = ?;";
-    
+
     private static final long LEVEL_AWARD = 25;
     private static final long[] TOURNAMENT_AWARDS = { 10000, 5000, 0, 0, 0 };
-    
+
     public static final long TOURNAMENT_ENTRANCE_FEE = 1000L;
     public static final long TOURNAMENT_MIN_LEVEL = 20L;
 
@@ -103,16 +103,17 @@ public class DBService {
         String dbName = properties.getProperty(DBNAME_KEY);
 
         log.info("All properties are present, establishing connection to DB");
-        con = DriverManager.getConnection("jdbc:mysql://" + dbHost + ":" + dbPort + "/" + dbName+"?allowMultiQueries=YES&connectionTimeZone=UTC", dbUser, dbPass);
+        con = DriverManager.getConnection("jdbc:mysql://" + dbHost + ":" + dbPort + "/" + dbName
+                + "?allowMultiQueries=YES&connectionTimeZone=UTC", dbUser, dbPass);
         log.info("DB Connection to {} established", con.getMetaData().getURL());
     }
 
-    public JSONObject insertUser(JSONObject user) throws SQLException, MyException{
+    public JSONObject insertUser(JSONObject user) throws SQLException, MyException {
         // insert user and get the id
         ResultSet rs;
         PreparedStatement stmt = con.prepareStatement(USER_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
         stmt.setString(1, user.getString("countryISO2"));
-        if(user.isNull("name")) {
+        if (user.isNull("name")) {
             log.trace("name is null, setting null to DB");
             stmt.setNull(2, Types.VARCHAR);
         } else {
@@ -124,9 +125,9 @@ public class DBService {
             log.error("Error while inserting user {}", user);
             throw new SQLException("Error while inserting user");
         }
-        
+
         rs = stmt.getGeneratedKeys();
-        if(!rs.next()){
+        if (!rs.next()) {
             log.error("Error while inserting user {}", user);
         }
         long user_id = rs.getLong(1);
@@ -135,7 +136,7 @@ public class DBService {
         return selectUser(user_id);
     }
 
-    public JSONObject selectUser(Long user_id) throws SQLException, MyException{
+    public JSONObject selectUser(Long user_id) throws SQLException, MyException {
         // retrieve the user
         log.debug("selectUser with user_id: {}", user_id);
         PreparedStatement stmt = con.prepareStatement(USER_SELECT_SQL);
@@ -144,12 +145,11 @@ public class DBService {
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
         JSONArray js = resultSetToJSON(rs);
-        if(js == null || js.length() == 0){
-            throw new MyException("User with user_id: "+user_id+" does not exist");
+        if (js == null || js.length() == 0) {
+            throw new MyException("User with user_id: " + user_id + " does not exist");
         }
-       return js.getJSONObject(0);
+        return js.getJSONObject(0);
     }
-
 
     /**
      * increment user level by 1 and coins by 25
@@ -168,7 +168,7 @@ public class DBService {
         log.trace("Executing SQL: {}", stmt.toString());
         if (stmt.executeUpdate() != 1) {
             log.error("Error while incrementing user level {}", user);
-            throw new MyException("Couldn't increment user level with user_id: "+user.getLong("user_id")  );
+            throw new MyException("Couldn't increment user level with user_id: " + user.getLong("user_id"));
         }
         log.trace("SQL executed");
         return selectUser(user.getLong("user_id"));
@@ -185,7 +185,8 @@ public class DBService {
     }
 
     public void updateTournamentScore(long tournament_group_id, int score) throws SQLException {
-        PreparedStatement stmt = con.prepareStatement("UPDATE `user_tournament_group` SET `score`=`score`+? WHERE utg_id = ?");
+        PreparedStatement stmt = con
+                .prepareStatement("UPDATE `user_tournament_group` SET `score`=`score`+? WHERE utg_id = ?");
         stmt.setLong(1, score);
         stmt.setLong(2, tournament_group_id);
 
@@ -195,7 +196,6 @@ public class DBService {
         }
         log.trace("SQL executed {}", stmt.toString());
     }
-
 
     /**
      * Insert tournament to DB
@@ -207,13 +207,13 @@ public class DBService {
         // get the current time in UTC
         Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
         log.info("Current time in UTC: {}", c.getTime());
-        String code = String.format("%d%02d%02d", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
+        String code = String.format("%d%02d%02d", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
         log.info("Generated code: {}", code);
-        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
+        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
         log.info("Generated start_time: {}", start_time);
-        String end_time = String.format("%d-%02d-%02d 20:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
+        String end_time = String.format("%d-%02d-%02d 20:00:00", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
 
         PreparedStatement stmt = con.prepareStatement(TOURNAMENT_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
@@ -267,9 +267,10 @@ public class DBService {
     public JSONArray getTodaysTournaments() throws SQLException, JSONException, MyException {
         PreparedStatement stmt = con.prepareStatement(TOURNAMENT_SELECT_ALL_TODAYS_TOURNAMENTS);
         Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH),
+        String start_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
                 c.get(Calendar.DAY_OF_MONTH));
-        String end_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1+c.get(Calendar.MONTH), 1+c.get(Calendar.DAY_OF_MONTH));
+        String end_time = String.format("%d-%02d-%02d 00:00:00", c.get(Calendar.YEAR), 1 + c.get(Calendar.MONTH),
+                1 + c.get(Calendar.DAY_OF_MONTH));
         stmt.setString(1, end_time);
         stmt.setString(2, start_time);
         log.trace("retrieving current tournaments SQL: {}", stmt.toString());
@@ -277,6 +278,7 @@ public class DBService {
         log.trace("SQL executed, result set: {}", rs);
         return resultSetToJSON(rs);
     }
+
     /**
      * Select tournament from DB
      * @param tournamentId
@@ -318,14 +320,13 @@ public class DBService {
     public static void close() {
         DBService instance = DBService.getInstance();
         try {
-            if (instance.con != null && !instance.con.isClosed())
-            { 
+            if (instance.con != null && !instance.con.isClosed()) {
                 instance.con.close();
             }
         } catch (SQLException e) {
             log.error("Error while closing DB connection {}", instance.con);
         }
-        
+
     }
 
     public JSONArray insertGroup(JSONObject tournament) throws SQLException {
@@ -358,11 +359,13 @@ public class DBService {
 
         stmt.setLong(1, TOURNAMENT_ENTRANCE_FEE);
         stmt.setLong(2, user_id);
-        
-        if(stmt.executeUpdate() != 1) {
-            log.warn("Error while deducting coin from user {}, he is lucky will join for free hehehe such a user may not exist though", user_id);
+
+        if (stmt.executeUpdate() != 1) {
+            log.warn(
+                    "Error while deducting coin from user {}, he is lucky will join for free hehehe such a user may not exist though",
+                    user_id);
         }
-        
+
         stmt = con.prepareStatement(USER_GROUP_INSERT_SQL, Statement.RETURN_GENERATED_KEYS);
         stmt.setLong(1, user_id);
         stmt.setLong(2, tournament_group_id);
@@ -385,7 +388,7 @@ public class DBService {
             return getTournamentGroup(user_tournament_group_id);
         } catch (Exception e) {
             log.error("Error while retrieving user_tournament_group", e);
-            return new JSONObject().put("utg_id" , user_tournament_group_id);
+            return new JSONObject().put("utg_id", user_tournament_group_id);
         }
     }
 
@@ -415,14 +418,12 @@ public class DBService {
         ResultSet rs = stmt.executeQuery();
         log.trace("SQL executed, result set: {}", rs);
 
-        JSONArray  js = resultSetToJSON(rs);
-        if(js.length() == 0){
+        JSONArray js = resultSetToJSON(rs);
+        if (js.length() == 0) {
             return null;
         }
         return js.getJSONObject(0);
     }
-
-
 
     public JSONArray getTournamentGroupLeaderboard(long tournament_group_id) throws SQLException {
         PreparedStatement stmt = con.prepareStatement(TOURNAMENT_GROUP_RANK);
@@ -453,13 +454,12 @@ public class DBService {
         return getLastCompletedTournaments(user_id, 1).optJSONObject(0);
     }
 
-    
     /**
      * return the information about the last maxCount completed tournaments
      * u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
      *  @return JSONArray of tournaments, returns empty array if there is no completed tournament
      */
-    public JSONArray getLastCompletedTournaments(long user_id, long maxCount ) throws SQLException, JSONException {
+    public JSONArray getLastCompletedTournaments(long user_id, long maxCount) throws SQLException, JSONException {
         PreparedStatement stmt = con.prepareStatement(USER_LAST_TOURNAMENT);
         stmt.setLong(1, user_id);
         stmt.setLong(2, maxCount);
@@ -470,10 +470,11 @@ public class DBService {
         return resultSetToJSON(rs);
     }
 
-    public JSONObject claimRewards(long user_id, long user_tournament_group_id, Long rank) throws SQLException, MyException{
+    public JSONObject claimRewards(long user_id, long user_tournament_group_id, Long rank)
+            throws SQLException, MyException {
         PreparedStatement stmt = con.prepareStatement(USER_CLAIM_REWARDS);
         stmt.setLong(1, user_tournament_group_id);
-        stmt.setLong(2, TOURNAMENT_AWARDS[rank.intValue()-1]);
+        stmt.setLong(2, TOURNAMENT_AWARDS[rank.intValue() - 1]);
         stmt.setLong(3, user_id);
 
         log.trace("claimRewards SQL: {}", stmt.toString());

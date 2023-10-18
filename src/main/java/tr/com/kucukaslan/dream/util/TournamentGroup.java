@@ -27,9 +27,8 @@ public class TournamentGroup {
         this.groupJson = groupJson;
     }
 
-
     public synchronized void put(String countryISO2, Long userId) {
-        log.trace("{}: put country: {} to group {}" , userId, countryISO2, groupMap);
+        log.trace("{}: put country: {} to group {}", userId, countryISO2, groupMap);
         groupMap.put(countryISO2, userId);
     }
 
@@ -39,10 +38,10 @@ public class TournamentGroup {
 
     @Override
     public String toString() {
-     return  toString(0)  ; 
+        return toString(0);
     }
-    
+
     public String toString(int i) {
-        return new JSONObject().put("group", groupJson).put("members", groupMap).toString(i)   ; 
+        return new JSONObject().put("group", groupJson).put("members", groupMap).toString(i);
     }
 }

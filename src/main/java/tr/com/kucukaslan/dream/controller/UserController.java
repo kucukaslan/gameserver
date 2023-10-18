@@ -101,7 +101,7 @@ public class UserController {
         try {
             TournamentManager.getInstance().updateTournamentScore(user.getLong("user_id"));
         } catch (SQLException | JSONException | MyException e) {
-            // TODO should we return error?
+            // TODO should we return error instead?
             log.debug("Error while updating tournament score {} due {} ", user, e.getMessage());
             log.debug("{}", e);
             log.debug(String.valueOf(e.getStackTrace()));
