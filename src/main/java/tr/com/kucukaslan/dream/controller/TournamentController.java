@@ -401,8 +401,10 @@ public class TournamentController {
         } 
     }
 
-    @RequestMapping("/test")
-    public ResponseEntity<String> test() {
+    /*
+     * 
+     @RequestMapping("/test")
+     public ResponseEntity<String> test() {
         String[] countries = new String[] { "TR", "US", "DE", "FR", "GB" };
         log.info("request is received");
         ExecutorService executorService = Executors.newFixedThreadPool(10000);
@@ -463,4 +465,6 @@ public class TournamentController {
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                 .body(new JSONObject().put("message", "test is ok").toString());
     }
+        */
+
 }

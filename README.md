@@ -121,11 +121,23 @@ insert themselves to the DB and return the response to the requests. (I have a s
 I've used `ConcurrentLinkedQueue`s. I also used syncronized block/methods/objects when needed. Obviously for, aforementioned, notification of other threads
 I used the Java's built-in `wait()` and `notify()` methods. 
 
+#### Tests
+I've written some test especially for the failure cases. However, for some reason,
+I couldn't use annotations like @BeforeTestMethod etc. It made writing tests 
+much more difficult and irritating. Especially for this server we have various
+steps to be taken inorderly: e.g. user created, user reaches level 20, user joins tournament,
+tournament ends, user checks rank, user claims rewards, user joins another tournament etc.
+
+I guess my mistake is possibly related to some behaviour of Spring Boot which is usually
+configured by default/automatically but for this particular case I probably made a mistake 
+that I would need my seniors help to fix.
+
+So the tests does not cover all the edgecases that it could, should, have.
 
 
-## TODO
+## Possible TODOs
 - [ ] using local cache instead of redis? (for now I'm not using redis)
-TournamentCache has a built-in cache, but it is not persistent. Maybe I can use redis for that.
+TournamentManager has a built-in cache, but it is not persistent. Maybe I can use redis for that.
 ```java
     private Map<String, JSONObject> tournamentCacheByCode;
 ```
