@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,10 @@ import tr.com.kucukaslan.dream.util.TournamentManager;
 @Slf4j
 @RestController
 public class UserController {
+    
+    @Autowired
+    private DBService dbService;
+    
 
     /**
      * This request creates a new user, returning a unique user ID, level,
@@ -46,7 +51,7 @@ public class UserController {
 
         JSONObject response = new JSONObject();
         try {
-            response = DBService.getInstance().insertUser(user);
+            response = dbService.insertUser(user);
         } catch (SQLException | JSONException | MyException e) {
             MyUtil.getResponseEntity(e);
         }
@@ -82,7 +87,7 @@ public class UserController {
 
         JSONObject response;
         try {
-            response = DBService.getInstance().incrementUserLevel(user);
+            response = dbService.incrementUserLevel(user);
         } catch (SQLException e) {
             log.error("Error while incrementing user level {} due {} ", user, e.getMessage());
             log.debug("{}", e);

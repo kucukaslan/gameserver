@@ -134,7 +134,6 @@ that I would need my seniors help to fix.
 
 So the tests does not cover all the edgecases that it could, should, have.
 
-
 ## Possible TODOs
 - [ ] using local cache instead of redis? (for now I'm not using redis)
 TournamentManager has a built-in cache, but it is not persistent. Maybe I can use redis for that.

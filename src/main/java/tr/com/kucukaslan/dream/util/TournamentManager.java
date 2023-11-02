@@ -11,12 +11,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 import tr.com.kucukaslan.dream.service.DBService;
 
 @Slf4j
+@Component
 public class TournamentManager {
+    @Autowired
+    private DBService dbService;
 
     private Map<String, ConcurrentLinkedQueue<TournamentGroup>> queueMap;
     private Map<String, JSONObject> tournamentCacheByCode;
@@ -78,7 +83,7 @@ public class TournamentManager {
 
         JSONObject tournament = getTodaysTournament();
         long tournament_id = tournament.getLong("tournament_id");
-        JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, userId);
+        JSONObject tug = dbService.getTournamentGroupIdByTournamentUserId(tournament_id, userId);
         if (tug != null) {
             log.trace("user {} is already joined to tournament", userId);
             throw new MyException("User is already joined to tournament");
@@ -101,7 +106,7 @@ public class TournamentManager {
             // and set the group json to avoid race conditions
             if (group.size() == 4) {
                 log.trace("joining {} from {}  to tournament {}", userId, countryISO2, tournament.toString());
-                JSONArray js = DBService.getInstance().insertGroup(tournament);
+                JSONArray js = dbService.insertGroup(tournament);
                 group.setGroupJson(js.getJSONObject(0));
             }
             group.put(countryISO2, userId);
@@ -127,19 +132,19 @@ public class TournamentManager {
             return tournamentCacheByCode.get(tournamentCode);
         }
 
-        JSONArray js = DBService.getInstance().getTodaysTournaments();
+        JSONArray js = dbService.getTodaysTournaments();
         if (js.length() == 0) {
             log.trace("no tournament found for today creating one");
             log.info("emptying queues before creating a new tournament");
             emptyQueues();
-            js = DBService.getInstance().insertTournament();
+            js = dbService.insertTournament();
         }
         tournamentCacheByCode.put(tournamentCode, js.getJSONObject(0));
         return js.getJSONObject(0);
     }
 
     public JSONObject join(Long user_id, Long tournament_group_id) throws SQLException {
-        return DBService.getInstance().insertUserGroup(user_id, tournament_group_id);
+        return dbService.insertUserGroup(user_id, tournament_group_id);
     }
 
     public boolean isTournamentHour() {
@@ -176,13 +181,13 @@ public class TournamentManager {
 
         JSONObject tournament = getTodaysTournament();
         long tournament_id = tournament.getLong("tournament_id");
-        JSONObject tug = DBService.getInstance().getTournamentGroupIdByTournamentUserId(tournament_id, user_id);
+        JSONObject tug = dbService.getTournamentGroupIdByTournamentUserId(tournament_id, user_id);
         if (tug == null) {
             log.trace("user {} is not in any tournament group, so tournament score is not updated", user_id);
             return;
         }
         long tournament_group_id = tug.getLong("utg_id");
-        DBService.getInstance().incrementTournamentScore(tournament_group_id);
+        dbService.incrementTournamentScore(tournament_group_id);
     }
 
 }

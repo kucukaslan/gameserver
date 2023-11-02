@@ -33,10 +33,14 @@ import tr.com.kucukaslan.dream.util.TestUtil;
 @WebMvcTest(controllers = UserController.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UserControllerTest {
+    
+    @Autowired
+    private static DBService dbService;
+
     @BeforeAll
     public static void init() {
         try {
-            DBService.getInstance().initialize();
+            dbService.initialize();
         } catch (IOException | SQLException e) {
             // log.error("Error while initializing DBService due to {}", e.getMessage());
         }

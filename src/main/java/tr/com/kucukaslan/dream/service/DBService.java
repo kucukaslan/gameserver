@@ -17,11 +17,13 @@ import java.util.TimeZone;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 import tr.com.kucukaslan.dream.util.MyException;
 
 @Slf4j
+@Service
 public class DBService {
     String DB_CONFIG = "config.properties";
 
@@ -71,25 +73,36 @@ public class DBService {
     public static final long TOURNAMENT_ENTRANCE_FEE = 1000L;
     public static final long TOURNAMENT_MIN_LEVEL = 20L;
 
-    private static class SingletonHolder {
-        static DBService instance = new DBService();
+    // private static class SingletonHolder {
+    //     static DBService instance = new DBService();
+    // }
+
+    public DBService() {
+
+        log.info("initializing DBService");
+        try {
+            initialize();
+        } catch (IOException | SQLException e) {
+            log.error("Error while initializing DBService due to {}", e.getMessage());
+            log.debug("Exception: {}", e);
+            log.debug("Stack trace: {}", String.valueOf(e.getStackTrace()));
+            DBService.close();
+            System.exit(1);
+        }
+        log.info("DBService initialized");
     }
 
-    private DBService() {
-
-    }
-
-    public static DBService getInstance() {
-        return SingletonHolder.instance;
-    }
+    // public static DBService getInstance() {
+    //     return SingletonHolder.instance;
+    // }
 
     public void initialize() throws FileNotFoundException, IOException, SQLException {
-        DBService instance = DBService.getInstance();
-        if (instance.con != null && !instance.con.isClosed()) {
-            log.info("DBService is already initialized");
-            return;
-        }
-        log.info("DBService initializing");
+        // DBService instance = dbService;
+        // if (instance.con != null && !instance.con.isClosed()) {
+        //     log.info("DBService is already initialized");
+        //     return;
+        // }
+        // log.info("DBService initializing");
 
         properties = new Properties();
         properties.load(new FileInputStream(DB_CONFIG));
@@ -318,14 +331,14 @@ public class DBService {
     }
 
     public static void close() {
-        DBService instance = DBService.getInstance();
-        try {
-            if (instance.con != null && !instance.con.isClosed()) {
-                instance.con.close();
-            }
-        } catch (SQLException e) {
-            log.error("Error while closing DB connection {}", instance.con);
-        }
+        // DBService instance = this;
+        // try {
+        //     if (instance.con != null && !instance.con.isClosed()) {
+        //         instance.con.close();
+        //     }
+        // } catch (SQLException e) {
+        //     log.error("Error while closing DB connection {}", instance.con);
+        // }
 
     }
 

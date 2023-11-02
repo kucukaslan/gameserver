@@ -9,6 +9,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +28,9 @@ import tr.com.kucukaslan.dream.util.TournamentManager;
 @Slf4j
 @RestController
 public class TournamentController {
+    @Autowired
+    private DBService dbService;
+
     Map<String, ConcurrentLinkedQueue<Long>> queueMap = new HashMap<>() {
         {
             put("TR", new ConcurrentLinkedQueue<Long>());
@@ -59,7 +63,7 @@ public class TournamentController {
         }
 
         try {
-            user = DBService.getInstance().selectUser(user.getLong("user_id"));
+            user = dbService.selectUser(user.getLong("user_id"));
         } catch (SQLException | MyException | JSONException e) {
             return MyUtil.getResponseEntity(e, "User cannot be found " + user.getLong("user_id"));
         }
@@ -70,7 +74,7 @@ public class TournamentController {
         JSONObject lastTournament;
         try {
             // u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
-            lastTournament = DBService.getInstance().getLastCompletedTournament(user_id);
+            lastTournament = dbService.getLastCompletedTournament(user_id);
         } catch (SQLException | JSONException e) {
             return MyUtil.getResponseEntity(e,
                     "Exception while retrieving last completed tournament of user " + user_id);
@@ -158,7 +162,7 @@ public class TournamentController {
         JSONObject tournament;
         try {
             // u.user_id, u.name, u.countryISO2, utg.score, utg.utg_id, tg.tournament_group_id, t.tournament_id, utg.rewardsClaimed, t.end_time
-            tournament = DBService.getInstance().getLastCompletedTournament(user_id);
+            tournament = dbService.getLastCompletedTournament(user_id);
         } catch (SQLException | JSONException e) {
             return MyUtil.getResponseEntity(e,
                     "Exception while retrieving last completed tournament of user " + user_id);
@@ -183,7 +187,7 @@ public class TournamentController {
         JSONArray group;
         long tournament_group_id = tournament.getLong("tournament_group_id");
         try {
-            group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+            group = dbService.getTournamentGroupLeaderboard(tournament_group_id);
         } catch (SQLException | JSONException e) {
             return MyUtil.getResponseEntity(e,
                     "Exception while retrieving tournament group leaderboard " + tournament_group_id);
@@ -225,7 +229,7 @@ public class TournamentController {
         // Now it is time to claim the reward
         JSONObject resp;
         try {
-            resp = DBService.getInstance().claimRewards(user_id, tournament.getLong("utg_id"), rank);
+            resp = dbService.claimRewards(user_id, tournament.getLong("utg_id"), rank);
         } catch (SQLException | MyException | JSONException e) {
             return MyUtil.getResponseEntity(e,
                     "Exception while claiming reward for user " + user_id + " in tournament "
@@ -272,7 +276,7 @@ public class TournamentController {
                     tournament_id = TournamentManager.getInstance().getTodaysTournament().getLong("tournament_id");
                 }
 
-                JSONObject tournamentGroup = DBService.getInstance().getTournamentGroupIdByTournamentUserId(
+                JSONObject tournamentGroup = dbService.getTournamentGroupIdByTournamentUserId(
                         tournament_id,
                         user_id);
                 if (tournamentGroup == null) {
@@ -286,7 +290,7 @@ public class TournamentController {
 
             long rank;
             long score;
-            JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+            JSONArray group = dbService.getTournamentGroupLeaderboard(tournament_group_id);
             if (group == null || group.length() < 1) {
                 log.error("tournament group {} is empty", tournament_group_id);
                 return ResponseEntity.badRequest().contentType(MediaType.APPLICATION_JSON)
@@ -340,7 +344,7 @@ public class TournamentController {
                 tournament_id = tourn.getLong("tournament_id");
             }
 
-            JSONArray leaderborad = DBService.getInstance().getTournamentCountryLeaderBoard(tournament_id);
+            JSONArray leaderborad = dbService.getTournamentCountryLeaderBoard(tournament_id);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                     .body(leaderborad.toString());
         } catch (SQLException | JSONException | MyException e) {
@@ -386,7 +390,7 @@ public class TournamentController {
                         "request does not contain tournament_group_id, retrieving tournament group of the user by user_id");
                 JSONObject tourn = TournamentManager.getInstance().getTodaysTournament();
 
-                JSONObject tournamentGroup = DBService.getInstance()
+                JSONObject tournamentGroup = dbService
                         .getTournamentGroupIdByTournamentUserId(tourn.getLong("tournament_id"),
                                 input.getLong("user_id"));
                 if (tournamentGroup == null) {
@@ -399,7 +403,7 @@ public class TournamentController {
                 tournament_group_id = tournamentGroup.getLong("tournament_group_id");
             }
 
-            JSONArray group = DBService.getInstance().getTournamentGroupLeaderboard(tournament_group_id);
+            JSONArray group = dbService.getTournamentGroupLeaderboard(tournament_group_id);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                     .body(group.toString());
         } catch (SQLException | JSONException | MyException e) {
