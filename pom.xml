@@ -8,11 +8,11 @@
 		<version>3.1.4</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>tr.com.kucukaslan.2023</groupId>
-	<artifactId>dream</artifactId>
+	<groupId>tr.com.kucukaslan</groupId>
+	<artifactId>gameserver</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>dream</name>
-	<description>Case for Dream Games new Grad Backend</description>
+	<name>gameserver</name>
+	<description>Game Server Backend</description>
 	<properties>
 		<java.version>17</java.version>
 	</properties>

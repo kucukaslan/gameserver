@@ -1,8 +1,8 @@
-# dream
+# Game Server Backend
 
 ## Build and Run
 First the database must be created.
-I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file.
+I've exported the database (structure) to [./extras/gameserver.sql](./extras/gameserver.sql) file.
 Create a database and use that sql file to create the tables.
 
 in [./config.properties](./config.properties) file, set the database credentials.
@@ -25,8 +25,8 @@ mvn test
 - I've used MySQL as a database (to be pedantic I used the MariaDB that comes with XAMPP)
 - Database configuration is in [./config.properties](./config.properties) file, 
 I will commit it for convenience with the test db credentials.
-- I've exported the database (structure) to [./extras/dream.sql](./extras/dream.sql) file. 
-- I've also exported the database (structure and data) to [./extras/dream_with_data.sql](./extras/dream_with_data.sql) file.
+- I've exported the database (structure) to [./extras/gameserver.sql](./extras/gameserver.sql) file. 
+- I've also exported the database (structure and data) to [./extras/gameserver_with_inconsistent_dummy_data.sql](./extras/gameserver_with_inconsistent_dummy_data.sql) file.
 however some of those data are manually modified, so they might be in 
 invalid (unattainable) state. e.g. some of the users referenced by tournament groups
 are deleted etc. 
@@ -55,7 +55,7 @@ I called `Calendar.getInstance(TimeZone.getTimeZone("UTC"))` in Java code.
 HOWEVER, you know timezones are [timezones](https://www.zainrizvi.io/blog/falsehoods-programmers-believe-about-time-zones/) 
 there is always, literally always, some mistakes. I suspect that during summer time zone
 changes the program might incorrectly clear the tournament group queues depending
- on the server's local time etc. but forgive me for omitting that :)
+ on the server's local time etc. but I will omit that for now :)
 
 - I do evaluate the tournament requests based on the server's time.
   It's bad (luck?) if a user sends a request to join tournament at 19.59.59.999 and the server
@@ -68,7 +68,7 @@ a request to claimreward. In that case the reward might not be given accurately.
 We could add a buffer time for all procceesing to complete before announcing the results. But I am not sure what is the best way to handle this. We may at someplace
 use counters (REDIS counters `INCR` if there are multiple servers) to keep track of
 the number of requests being processed so that claimreward endpoint can wait for
-it to be zeroeth. But forgive me for not implementing it too :)
+it to be zeroeth. But I will omit that too :)
 
 
 #### Endpoints
@@ -122,6 +122,9 @@ I've used `ConcurrentLinkedQueue`s. I also used syncronized block/methods/object
 I used the Java's built-in `wait()` and `notify()` methods. 
 
 #### Tests
+> [!NOTE]
+Help wanted! I couldn't get enforce partial ordering of the tests.
+
 I've written some test especially for the failure cases. However, for some reason,
 I couldn't use annotations like @BeforeTestMethod etc. It made writing tests 
 much more difficult and irritating. Especially for this server we have various
