@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.controller;
+package tr.com.kucukaslan.gameserver.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -27,9 +27,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-import tr.com.kucukaslan.dream.service.DBService;
-import tr.com.kucukaslan.dream.util.MyUtil;
-import tr.com.kucukaslan.dream.util.TestUtil;
+import tr.com.kucukaslan.gameserver.service.DBService;
+import tr.com.kucukaslan.gameserver.util.MyUtil;
+import tr.com.kucukaslan.gameserver.util.TestUtil;
 
 @TestExecutionListeners(listeners = {
         EventPublishingTestExecutionListener.class }, inheritListeners = false, mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

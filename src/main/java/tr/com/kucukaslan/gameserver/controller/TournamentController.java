@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.controller;
+package tr.com.kucukaslan.gameserver.controller;
 
 import java.sql.SQLException;
 import java.util.HashMap;
@@ -18,11 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import tr.com.kucukaslan.dream.service.DBService;
-import tr.com.kucukaslan.dream.util.MyException;
-import tr.com.kucukaslan.dream.util.MyUtil;
-import tr.com.kucukaslan.dream.util.TournamentGroup;
-import tr.com.kucukaslan.dream.util.TournamentManager;
+import tr.com.kucukaslan.gameserver.service.DBService;
+import tr.com.kucukaslan.gameserver.util.MyException;
+import tr.com.kucukaslan.gameserver.util.MyUtil;
+import tr.com.kucukaslan.gameserver.util.TournamentGroup;
+import tr.com.kucukaslan.gameserver.util.TournamentManager;
 
 @Slf4j
 @RestController

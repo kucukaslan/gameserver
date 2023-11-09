@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.controller;
+package tr.com.kucukaslan.gameserver.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.Iterator;
 
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
@@ -18,14 +17,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.event.EventPublishingTestExecutionListener;
-import org.springframework.test.context.event.annotation.BeforeTestMethod;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.ResultMatcher;
 
-import tr.com.kucukaslan.dream.service.DBService;
-import tr.com.kucukaslan.dream.util.TestUtil;
+import tr.com.kucukaslan.gameserver.service.DBService;
+import tr.com.kucukaslan.gameserver.util.TestUtil;
 
 @TestExecutionListeners(listeners = {
         EventPublishingTestExecutionListener.class }, inheritListeners = false, mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)

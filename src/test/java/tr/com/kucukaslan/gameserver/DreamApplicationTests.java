@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream;
+package tr.com.kucukaslan.gameserver;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import tr.com.kucukaslan.dream.service.DBService;
+import tr.com.kucukaslan.gameserver.service.DBService;
 
 @SpringBootTest
 class DreamApplicationTests {

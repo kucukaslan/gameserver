@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.util;
+package tr.com.kucukaslan.gameserver.util;
 
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -13,7 +13,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import lombok.extern.slf4j.Slf4j;
-import tr.com.kucukaslan.dream.service.DBService;
+import tr.com.kucukaslan.gameserver.service.DBService;
 
 @Slf4j
 public class TournamentManager {

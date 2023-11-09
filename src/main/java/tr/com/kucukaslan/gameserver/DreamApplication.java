@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream;
+package tr.com.kucukaslan.gameserver;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -7,7 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import lombok.extern.slf4j.Slf4j;
-import tr.com.kucukaslan.dream.service.DBService;
+import tr.com.kucukaslan.gameserver.service.DBService;
 
 @Slf4j
 @SpringBootApplication

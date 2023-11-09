@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.service;
+package tr.com.kucukaslan.gameserver.service;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -19,7 +19,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import lombok.extern.slf4j.Slf4j;
-import tr.com.kucukaslan.dream.util.MyException;
+import tr.com.kucukaslan.gameserver.util.MyException;
 
 @Slf4j
 public class DBService {

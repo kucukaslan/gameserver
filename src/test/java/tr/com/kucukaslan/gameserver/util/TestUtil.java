@@ -1,4 +1,4 @@
-package tr.com.kucukaslan.dream.util;
+package tr.com.kucukaslan.gameserver.util;
 
 import java.util.Iterator;
 
